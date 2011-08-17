@@ -1,0 +1,300 @@
+#!/usr/bin/env stap
+
+global start_us
+global thread_ticks, ticks, tids
+global disk_reads, disk_writes
+global debug_mode
+global interactive_epoch
+global interactive_group
+
+// parameters
+global vram_write_threshold
+global display_wait_us_threshold
+
+probe begin {
+    start_us = gettimeofday_us();
+    vram_write_threshold = 128
+    display_wait_us_threshold = 500000  // 500ms
+    if( $# >= 1 ) {
+        debug_mode = 1
+    }
+}
+function elapsed_time_us:long (start_time:long) {
+    return gettimeofday_us() - start_time;
+}
+
+probe perf.sw.cpu_clock!, timer.profile {
+    // NB: To avoid contention on SMP machines, no global scalars/arrays used,
+    // only contention-free statistics aggregates.
+    tid=tid(); e=execname()
+    thread_ticks[e,tid] <<< 1
+    ticks <<< 1
+    tids[e,tid] <<< 1
+}
+
+probe timer.ms(100) {
+    curr_time_us = gettimeofday_us()
+    allticks = @count(ticks)
+    printf("%d C\n", elapsed_time_us(start_us))
+    foreach ([e,tid] in tids- limit 10) {
+        thread_scaled = @count(thread_ticks[e,tid])*10000/allticks      // FIXME: 10000 hardcoded
+        printf ("%16s %5d %3d.%02d%%\n", e, tid, thread_scaled/100, thread_scaled%100)
+    }
+    printf("\n")
+    //printf("%d B %d %d\n", elapsed_time_us(start_us), disk_reads, disk_writes)
+
+    // show share for each vcpu
+    foreach( [vm_id, vcpu_id+] in vcpu_share ) {
+        printf( "d%d-v%d SH %d\n", vm_id, vcpu_id, vcpu_share[vm_id, vcpu_id] / nr_vcpu_share[vm_id, vcpu_id] )
+    }
+    delete vcpu_share
+    delete nr_vcpu_share
+    printf("\n")
+
+    foreach( [vm_id, task_id] in task_time_per_vm- ) {
+        if( interactive_epoch[vm_id] && prev_task_time_per_vm[vm_id, task_id] ) {
+            if( (task_time_per_vm[vm_id, task_id] - prev_task_time_per_vm[vm_id, task_id]) * 5 > total_vcpu_time[vm_id] )   // FIXME
+                interactive_group[vm_id, task_id] = 1
+        }
+        if( total_vcpu_time[vm_id] ) {
+            printf( "d%d: T %08x %d%% %d%% VR %d\n", 
+                    vm_id, task_id, 
+                    task_time_per_vm[vm_id, task_id] * 100 / total_vcpu_time[vm_id], 
+                    task_time_per_vm[vm_id, task_id] * 100 / 100000,        // FIXME: hardcoded - 100000 us
+                    [vm_id, task_id] in vram_write_per_task ? vram_write_per_task[vm_id, task_id] : 0 )
+        }
+
+        prev_task_time_per_vm[vm_id, task_id] = task_time_per_vm[vm_id, task_id]
+    }
+    delete vram_write_per_task
+
+    foreach ( [vm_id] in vm_list ) {
+        printf( "vm_id=%d -> vcpu=%d : task=%d\n", vm_id, total_vcpu_time[vm_id], total_task_time[vm_id] )
+    }
+    time_reset = 1
+
+    foreach ( [vm_id, task_id] in interactive_group ) {
+        printf( "\tGRP %d T %08x\n", vm_id, task_id )
+    }
+
+    foreach ( [vm_id] in vram_write_per_vm ) {
+        printf( "VRAM %d %d\n", vm_id, vram_write_per_vm[vm_id] )
+        if( interactive_epoch[vm_id] && curr_time_us - interactive_epoch[vm_id] > display_wait_us_threshold ) {
+            if( vram_write_per_vm[vm_id] < vram_write_threshold ) {
+                printf( "STOP %d %d\n", vm_id, gettimeofday_us() - interactive_epoch[vm_id] )
+                    interactive_epoch[vm_id] = 0
+            }
+        }
+    }
+    delete vram_write_per_vm
+
+    foreach( [vm_id] in ipi_per_vm ) {
+        printf( "IPI %d %d\n", vm_id, ipi_per_vm[vm_id] )
+    }
+    delete ipi_per_vm
+
+    delete thread_ticks
+    delete ticks
+    delete tids
+
+    disk_reads = 0
+    disk_writes = 0
+}
+
+probe process("/usr/lib/libspice-server.so.1.0.2").function("inputs_handle_input") { 
+    curr_vm_id = pid()
+    if( $type == 102 ) {
+        print_vm_header("K\n")
+        interactive_epoch[curr_vm_id] = gettimeofday_us()
+    } 
+    else if ( $type == 114 ) {
+        print_vm_header("M\n")
+        interactive_epoch[curr_vm_id] = gettimeofday_us()
+    }
+}
+probe process("/usr/lib/libspice-server.so.1.0.2").function("red_send_data") { 
+    display_size = $channel->send_data->size - $channel->send_data->pos; 
+    if( debug_mode ) {
+        print_vm_header("")
+        printf( "D %d\n", display_size )
+    }
+}
+probe process("/usr/lib/libspice-server.so.1.0.2").function("*snd_send_data") { 
+    printf( "%d S %d %d\n", elapsed_time_us(start_us), $channel->send_data->size - $channel->send_data->pos, tid() )
+}
+
+// tracking vram dirtying 
+global vram_write_per_task
+global vram_write_per_vm
+global vram_gfn
+probe module("kvm").function("mark_page_dirty").return {
+    curr_vm_id = pid()
+    if( $gfn >= 0xf0000 && $gfn < 0xf1000 ) {
+        if( debug_mode ) {
+            print_vm_header("")
+            printf( "W %x\n", $gfn )
+        }
+        vram_write_per_task[curr_vm_id, curr_task_id_of_vcpu[tid()]]++
+        vram_write_per_vm[curr_vm_id]++
+        vram_gfn <<< $gfn
+    }
+}
+
+probe end {
+    printf( "vram gfn: min=%x max=%x count=%d\n", @min(vram_gfn), @max(vram_gfn), @count(vram_gfn) );
+}
+
+global vm_list
+global task_start_time
+global task_time_per_vm, task_time_per_vcpu
+global prev_task_time_per_vm
+global vcpu_start_time
+global vcpu_time_per_vm
+global curr_task_id_of_vcpu
+global total_vcpu_time, total_task_time
+global time_reset
+global ipi_per_vm
+global vcpu_share
+global nr_vcpu_share
+
+function print_vm_header(msg:string) {
+    printf( "%d d%d-v%dp%d: %s", elapsed_time_us(start_us), pid(), tid(), cpu(), msg )
+}
+function account_task(task_id:long, curr_time_us:long) {
+    curr_vm_id   = pid()
+    curr_vcpu_id = tid()
+
+    if( task_start_time[curr_vcpu_id] ) {
+        task_run_time = curr_time_us - task_start_time[curr_vcpu_id]  
+        task_time_per_vcpu[curr_vcpu_id, task_id] += task_run_time
+        task_time_per_vm[curr_vm_id, task_id] += task_run_time
+        total_task_time[curr_vm_id] += task_run_time
+
+        if( debug_mode ) {
+            print_vm_header("")
+            printf( "\t\tTAC %08x %d/%d\n", task_id, task_run_time, total_task_time[curr_vm_id] )
+        }
+    }
+}
+function account_vcpu(vcpu_id:long, curr_time_us:long) {
+    curr_vm_id = pid()
+    if( vcpu_start_time[vcpu_id] ) {
+        vcpu_run_time = curr_time_us - vcpu_start_time[vcpu_id]  
+        vcpu_time_per_vm[curr_vm_id, vcpu_id] += vcpu_run_time
+        total_vcpu_time[curr_vm_id] += vcpu_run_time
+
+        if( debug_mode ) {
+            print_vm_header("")
+            printf( "\t\tVAC %d %d/%d\n", vcpu_id, vcpu_run_time, total_vcpu_time[curr_vm_id] )
+        }
+    }
+}
+function set_task_start_time(vcpu_id:long, curr_time_us:long) {
+    task_start_time[vcpu_id] = curr_time_us
+
+    if( debug_mode ) {
+        print_vm_header("")
+        printf( "\tST %d %08x\n", vcpu_id, curr_task_id_of_vcpu[vcpu_id] )
+    }
+}
+function set_vcpu_start_time(vcpu_id:long, curr_time_us:long) {
+    vcpu_start_time[vcpu_id] = curr_time_us
+
+    if( debug_mode ) {
+        print_vm_header("")
+        printf( "\tSV %d\n", vcpu_id )
+    }
+}
+
+probe module("kvm").function("kvm_set_cr3") {
+    curr_time_us = gettimeofday_us()
+    curr_vcpu_id = tid()
+    prev_task_id = $vcpu->arch->cr3
+    next_task_id = $cr3
+
+    if( debug_mode ) {
+        print_vm_header("")
+        printf( "\tTS %08x -> %08x\n", prev_task_id, next_task_id );
+    }
+
+    // accounting prev task
+    account_task(prev_task_id, curr_time_us) 
+
+    // setting next task
+    curr_task_id_of_vcpu[curr_vcpu_id] = next_task_id
+    set_task_start_time(curr_vcpu_id, curr_time_us)
+}
+
+probe __scheduler.ctxswitch.tp {
+    if( debug_mode ) {
+        print_vm_header("")
+        printf( "VS %s(%d-%d) -> %s(%d-%d)\n", prev_task_name, prev_pid, prev_tid, next_task_name, next_pid, next_tid )
+    }
+    
+    curr_time_us = gettimeofday_us()
+    if( [prev_tid] in curr_task_id_of_vcpu ) {
+        if( time_reset ) {
+            delete total_vcpu_time
+            delete total_task_time
+            delete vcpu_time_per_vm
+            delete task_time_per_vm
+            delete task_time_per_vcpu
+            time_reset = 0
+        }
+        account_task(curr_task_id_of_vcpu[prev_tid], curr_time_us)
+        account_vcpu(prev_tid, curr_time_us)
+    }
+    if( [next_tid] in curr_task_id_of_vcpu ) {
+        set_task_start_time(next_tid, curr_time_us)
+        set_vcpu_start_time(next_tid, curr_time_us)
+    }
+
+    // calculate share ratio of the queue that owns the next vcpu
+    //if( [next_pid] in vm_list ) {
+    //if( [next_tid] in curr_task_id_of_vcpu ) {
+    //    tg_shares = @cast($next->se->cfs_rq, "cfs_rq")->tg->shares
+    //    my_q_weight = @cast($next->se->cfs_rq, "cfs_rq")->tg->se[@cast($next->se->cfs_rq, "cfs_rq")->rq->cpu]->load->weight
+    //    vcpu_share[next_pid, next_tid] += (my_q_weight * 100) / tg_shares
+    //    nr_vcpu_share[next_pid, next_tid]++
+    //    if( debug_mode ) {
+    //        print_vm_header("")
+    //        //printf( "  VSH %d (%d/%d)\n", (my_q_weight * 100) / tg_shares, my_q_weight, tg_shares )
+    //        printf( "  VSH %d", tg_shares )
+    //        for( i=0 ; i < 8 ; i++ ) {
+    //            printf( " %d=%d\t", i, @cast($next->se->cfs_rq, "cfs_rq")->tg->se[i]->load->weight )
+    //        }
+    //        printf( "\n" )
+    //    }
+    //    
+    //}
+}
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vm_list[pid()] = 1
+    curr_vcpu_id = tid()    // instead of vcpu->vcpu_id
+    curr_task_id_of_vcpu[curr_vcpu_id] = $vcpu->arch->cr3
+}
+
+probe kernel.trace("kvm_apic_ipi") {
+    if( debug_mode ) {
+        print_vm_header("")
+        printf( " I %d\n", $dest_id )
+    }
+    ipi_per_vm[pid()]++
+}
+
+
+// block I/O tracking 
+//probe process("qemu-system-x86_64").statement("*@block.c:2055") { 
+//    if( $bs && $bs->filename ) {
+//        printf( "BR %s %x %x\n", kernel_string($bs->filename), $sector_num, $nb_sectors )
+//    }
+//}
+//probe vfs.read {
+//    if( ino == 15624702 )  // FIXME: hardcoded
+//        disk_reads += bytes_to_read
+//}
+//probe vfs.write {
+//    if( ino == 15624702 )  // FIXME: hardcoded
+//        disk_writes += bytes_to_write
+//}
+

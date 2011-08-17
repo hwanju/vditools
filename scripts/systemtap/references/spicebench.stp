@@ -1,0 +1,31 @@
+#!/usr/bin/stap -v
+global start_us
+
+probe begin {
+    start_us = gettimeofday_us();
+}
+
+function elapsed_time_us:long (start_time:long) {
+    return gettimeofday_us() - start_time;
+}
+
+function print_vm_header(msg:string) {
+    printf( "%d %d %s", elapsed_time_us(start_us), pid(), msg )
+}
+
+probe process("/usr/lib/libspice-server.so.1.0.2").function("inputs_handle_input") { 
+    if( $type == 102 )
+        print_vm_header("K\n")
+    else if ( $type == 114 )
+        print_vm_header("M\n")
+}
+probe process("/usr/lib/libspice-server.so.1.0.2").function("red_send_data") { 
+    display_size = $channel->send_data->size - $channel->send_data->pos; 
+    print_vm_header("D")
+    printf( " %d\n", display_size )
+}
+probe process("/usr/lib/libspice-server.so.1.0.2").function("*snd_send_data") { 
+    print_vm_header("S")
+    printf( " %d\n", $channel->send_data->size - $channel->send_data->pos )
+}
+

@@ -1,0 +1,63 @@
+#!/usr/bin/stap -v
+
+global max_cpu = 8
+global vcpu_list
+global ipi_pending_timestamp
+global ipi_histo
+global debug_mode
+
+probe begin {
+    debug_mode = 0
+    if( $# >= 1 ) {
+        debug_mode = 1
+    }
+}
+
+probe __scheduler.ctxswitch.tp {
+    // SWITCH_IN
+    if( [prev_tid] in vcpu_list ) {
+        vm_id = prev_pid
+        vcpu_id = vcpu_list[prev_tid]
+        ipi_pending_timestamp[vm_id, vcpu_id] = 0
+    }
+    if( [next_tid] in vcpu_list ) {
+        vm_id = next_pid
+        vcpu_id = vcpu_list[next_tid]
+        if( ipi_pending_timestamp[vm_id, vcpu_id] ) {
+            ipi_latency = gettimeofday_us() - ipi_pending_timestamp[vm_id, vcpu_id]
+            ipi_histo <<< ipi_latency
+            ipi_pending_timestamp[vm_id, vcpu_id] = 0 
+
+            if( debug_mode ) {
+                if( ipi_latency > 10000 ) {
+                    printf( "ipi_latency=%d: %s (%d:%d) -> %s (%d:%d)\n", ipi_latency, prev_task_name, prev_pid, prev_tid, next_task_name, next_pid, next_tid )
+                }
+            }
+        }
+    }
+}
+
+probe kernel.trace("kvm_apic_ipi") {
+    vm_id = pid()
+    if( ($icr_low & 0xff) == 0xfd ) {
+        for( dest_vcpu_id=0 ; dest_vcpu_id < max_cpu ; dest_vcpu_id++ ) {
+            if( $dest_id & (1 << dest_vcpu_id) ) {
+                ipi_pending_timestamp[vm_id, dest_vcpu_id] = gettimeofday_us()
+            }
+        }
+    }
+    //if( ($icr_low & 0xff) > 0xe0 && ($icr_low & 0xff) <= 0xee ) {
+    //    printf( "I dest_id=%d, icr_low=%x, vector=%x\n", $dest_id, $icr_low, $icr_low & 0xFF)
+    //}
+    //printf( "I dest_id=%d, icr_low=%x, vector=%x\n", $dest_id, $icr_low, $icr_low & 0xFF)
+}
+
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vcpu_list[tid()] = $vcpu->vcpu_id
+    ipi_pending_timestamp[pid(), $vcpu->vcpu_id] = 0
+}
+
+probe end {
+    print( @hist_log(ipi_histo) )
+    printf( "count=%d, avg=%d, min=%d, max=%d\n", @count(ipi_histo), @avg(ipi_histo), @min(ipi_histo), @max(ipi_histo) )
+}

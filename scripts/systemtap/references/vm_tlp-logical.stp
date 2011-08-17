@@ -1,0 +1,263 @@
+#!/usr/bin/env stap
+global trace_start_time
+global vcpu_list
+global tlp_virtual_time
+global switchin_time
+global blocked_timestamp
+global ready_timestamp
+global debug_mode
+global vcpu_stat
+
+global ipi_pending_virtual_time
+global ipi_pending_timestamp
+
+global nr_identified_vcpu
+
+probe begin {
+    trace_start_time = gettimeofday_us()
+
+    if( $# >= 1 ) {
+        debug_mode = 1
+    }
+
+    // test
+    vcpu_list[1745] = 0
+    vcpu_list[1746] = 1
+    vcpu_list[1747] = 2
+    vcpu_list[1748] = 3
+    vcpu_list[1749] = 4
+    vcpu_list[1750] = 5
+    vcpu_list[1751] = 6
+    vcpu_list[1752] = 7
+}
+
+probe __scheduler.ctxswitch.tp {
+    curr_time = gettimeofday_us()
+    curr_cpu = cpu()
+    if( [prev_tid] in vcpu_list || [next_tid] in vcpu_list ) {
+        if( debug_mode )
+            printf( "%d %d D \"%s\" %d-%d (%d) <%d> -> \"%s\" %d-%d (%d) <%d>\n", 
+                curr_time, curr_cpu, 
+                prev_task_name, prev_pid, prev_tid, prevtsk_state, [prev_tid] in vcpu_list ? vcpu_list[prev_tid] : -1,
+                next_task_name, next_pid, next_tid, nexttsk_state, [next_tid] in vcpu_list ? vcpu_list[next_tid] : -1 
+            )
+    }
+
+    //// calculate tlp_virtual_time
+    // SWITCH_OUT
+    if( [prev_tid] in vcpu_list ) {
+        vm_id = prev_pid
+        vcpu_id = vcpu_list[prev_tid]
+        if( switchin_time[vm_id, vcpu_id] != 0 ) {
+            exetime = curr_time - switchin_time[vm_id, vcpu_id]
+        }
+        else {  // corner-case at the fisrt time of trace
+            exetime = curr_time - trace_start_time
+            if( debug_mode )
+                printf( "\tMISS: SWITCHOUT w/o SWITCHIN event\n" )
+        }
+        tlp_virtual_time[vm_id, vcpu_id] += exetime
+        if( debug_mode )
+            printf( "\tOUT tlp_virtual_time[%d,%d] (+exetime=%d) = %d\n", vm_id, vcpu_id, exetime, tlp_virtual_time[vm_id, vcpu_id] )
+
+        if( prevtsk_state != 0 ) {          // if switched out being blocked ( -> vm becomes idle )
+            blocked_timestamp[vm_id, vcpu_id] = curr_time
+            ready_timestamp[vm_id, vcpu_id] = 0
+
+            if( debug_mode )
+                printf( "\tOUT blocked_timestamp[%d,%d]=%d\n", vm_id, vcpu_id, blocked_timestamp[vm_id, vcpu_id] )
+
+            // new trace
+            printf( "%d %d D \"swapper\" 0-0\n", tlp_virtual_time[vm_id, vcpu_id], vcpu_id )
+            vcpu_stat[vm_id, vcpu_id] = 0
+        }
+
+        ipi_pending_virtual_time[vm_id, vcpu_id] = 0
+        switchin_time[vm_id, vcpu_id] = 0
+    }
+    // SWITCH_IN
+    if( [next_tid] in vcpu_list ) {
+        vm_id = next_pid
+        vcpu_id = vcpu_list[next_tid]
+        blocked_ts = blocked_timestamp[vm_id, vcpu_id]
+        if( blocked_ts != 0 ) {      // blocked -> ready -> scheduled
+            ready_ts = ready_timestamp[vm_id, vcpu_id]
+            blocked_time = ready_ts - blocked_ts
+            if( blocked_time > 0 ) {
+                tlp_virtual_time[vm_id, vcpu_id] += blocked_time
+                if( debug_mode ) {
+                    //printf( "\tIN tlp_virtual_time[%d,%d] (+blocked_time=%d) = %d\n", vm_id, vcpu_id, blocked_time, tlp_virtual_time[vm_id, vcpu_id] )
+
+                    ipi_pending_vt = ipi_pending_virtual_time[vm_id, vcpu_id]
+                    ipi_pending_ts = ipi_pending_timestamp[vm_id, vcpu_id]
+                    if( ipi_pending_vt != 0 ) {   // if this wakeup is initiated by IPI sent by another vcpu, sync the virtual time!
+                        if( debug_mode ) {
+                            if( ipi_pending_vt > tlp_virtual_time[vm_id, vcpu_id] ) {
+                                printf( "\tSHIFTED VIRTUAL TIME (ipi=%d > vt=%d)\n", ipi_pending_vt, tlp_virtual_time[vm_id, vcpu_id] )
+                            }
+                            else {
+                                printf( "WRAP VT: vt-ipi= %d\n", tlp_virtual_time[vm_id, vcpu_id] - ipi_pending_vt )
+                            }
+                        }
+                        tlp_virtual_time[vm_id, vcpu_id] = ipi_pending_vt + (ready_ts - ipi_pending_ts)
+                    }
+                }
+
+                // new trace
+                printf( "%d %d D \"kvm\" %d-%d\n", tlp_virtual_time[vm_id, vcpu_id], vcpu_id, next_pid, next_tid )
+                vcpu_stat[vm_id, vcpu_id] = 1
+            }
+            else {
+                if( debug_mode )
+                    printf( "\tBUG: blocked_time (%d) is negative (blocked_timestamp=%d)\n", blocked_time, blocked_timestamp[vm_id, vcpu_id] )
+            }
+        }
+        else {      // running -> ready -> scheduled: basically do not generate trace, but generate a dispatch trace if current vcpu status is an idle
+            if( vcpu_stat[vm_id, vcpu_id] == 0 ) {
+                // new trace
+                printf( "%d %d D \"kvm\" %d-%d\n", tlp_virtual_time[vm_id, vcpu_id], vcpu_id, next_pid, next_tid )
+                vcpu_stat[vm_id, vcpu_id] = 1
+            }
+        }
+        switchin_time[vm_id, vcpu_id] = curr_time
+        blocked_timestamp[vm_id, vcpu_id] = 0
+        ready_timestamp[vm_id, vcpu_id] = 0
+        
+        ipi_pending_virtual_time[vm_id, vcpu_id] = 0
+    }
+}
+
+// blocked -> ready
+probe scheduler.wakeup {
+    task_name = kernel_string($p->comm);
+    if( [task_tid] in vcpu_list ) {
+        if( debug_mode )
+            printf( "%d %d W \"%s\" %d-%d (%d) <%d> %d\n", gettimeofday_us(), cpu(), task_name, task_pid, task_tid, task_state, vcpu_list[task_tid], task_cpu );
+
+        vm_id = task_pid
+        vcpu_id = vcpu_list[task_tid]
+        curr_time = gettimeofday_us()
+        ready_timestamp[vm_id, vcpu_id] = curr_time
+        if( blocked_timestamp[vm_id, vcpu_id] == 0 ) {
+            if( debug_mode )
+                printf( "\tMISS: WAKEUP w/o BLOCK\n" )
+            //if( switchin_time[vm_id, vcpu_id] == 0 ) {  // at the first part of trace
+            //    blocked_timestamp[vm_id, vcpu_id] = trace_start_time
+            //}
+        }
+    }
+}
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vm_id = pid()
+    tid = tid()
+    if( !([tid] in vcpu_list) ) {
+        vcpu_list[tid()] = $vcpu->vcpu_id
+        nr_identified_vcpu[vm_id]++
+
+        if( debug_mode ) {
+            printf( "%d %d L %d-%d <%d> %d\n", gettimeofday_us(), cpu(), vm_id, tid, $vcpu->vcpu_id, nr_identified_vcpu[vm_id] )
+        }
+    }
+}
+
+global curr_real_timestamp
+probe timer.ms(100) {
+    if( debug_mode ) {
+        printf( "============= tlp_virtual_time every 100ms =============\n" )
+            foreach ( [vm_id, vcpu_id] in tlp_virtual_time- ) {
+                printf( "[%d,%d] = %d\n", vm_id, vcpu_id, tlp_virtual_time[vm_id, vcpu_id] )
+            }
+        printf( "========================================================\n" )
+    }
+
+    curr_real_timestamp += 100000   // 100 ms
+    foreach ( [vm_id, vcpu_id] in vcpu_stat ) {
+        tlp_virtual_time[vm_id, vcpu_id] = curr_real_timestamp
+        if( switchin_time[vm_id, vcpu_id] != 0 ) {
+            switchin_time[vm_id, vcpu_id] = gettimeofday_us()
+        }
+        if( blocked_timestamp[vm_id, vcpu_id] != 0 ) {
+            blocked_timestamp[vm_id, vcpu_id] = gettimeofday_us()
+        }
+    }
+}
+
+probe kernel.trace("kvm_apic_ipi") {
+    max_cpu = 8
+    if( [tid()] in vcpu_list ) {    // likely
+        vm_id = pid()
+        src_vcpu_id = vcpu_list[tid()]
+        curr_time = gettimeofday_us()
+        for( dest_vcpu_id=0 ; dest_vcpu_id < max_cpu ; dest_vcpu_id++ ) {
+            if( $dest_id & (1 << dest_vcpu_id) ) {
+                ipi_pending_virtual_time[vm_id, dest_vcpu_id] = tlp_virtual_time[vm_id, src_vcpu_id]
+                ipi_pending_timestamp[vm_id, dest_vcpu_id] = curr_time
+                if( debug_mode ) {
+                    printf( "%d %d I %d-%d %d %d->%d (vt=%d)\n", 
+                        curr_time, cpu(), pid(), tid(), $dest_id, src_vcpu_id, dest_vcpu_id, tlp_virtual_time[vm_id, src_vcpu_id] )
+                }
+                else {
+                    printf( "%d %d I %d\n", tlp_virtual_time[vm_id, src_vcpu_id], src_vcpu_id, dest_vcpu_id )
+                }
+            }
+        }
+        nr_ipi++
+    }
+}
+
+global nr_ipi
+probe end {
+    trace_end_time = gettimeofday_us()
+
+    //foreach ( [vm_id, vcpu_id] in vcpu_stat ) {
+    //    if( vcpu_stat[vm_id, vcpu_id] == 1 ) {
+    //        exetime = trace_end_time - switchin_time[vm_id, vcpu_id]
+    //        tlp_virtual_time[vm_id, vcpu_id] += exetime 
+    //        printf( "%d %d D \"swapper\" 0-0\n", tlp_virtual_time[vm_id, vcpu_id], vcpu_id )
+    //        break
+    //    }
+    //}
+    printf( "nr_ipi=%d\n" , nr_ipi )
+    printf( "elapsed_time=%d\n", (trace_end_time - trace_start_time) / 1000000 )
+}
+
+// debugging ////////////////
+//function __task_pid:long (se:long)
+//%{ /* pure */
+//    struct sched_entity *sep = (struct sched_entity *)(long)(THIS->se);
+//    THIS->__retvalue = container_of(sep, struct task_struct, se)->pid;
+//    CATCH_DEREF_FAULT();
+//%}
+//
+//probe kernel.function( "activate_task" ).return {
+//    if( [$p->pid] in vcpu_list ) {
+//        printf( "act %d %d-%d <%d> %x nr_running=%d\n", $rq->cpu, $p->tgid, $p->pid, vcpu_list[$p->pid], $flags, $rq->nr_running )
+//    }
+//}
+//probe kernel.function( "deactivate_task" ).return {
+//    if( [$p->pid] in vcpu_list ) {
+//        printf( "dact %d %d-%d <%d> %x nr_running=%d\n", $rq->cpu, $p->tgid, $p->pid, vcpu_list[$p->pid], $flags, $rq->nr_running )
+//    }
+//}
+//probe kernel.function( "try_to_wake_up" ) {
+//    if( [$p->pid] in vcpu_list ) {
+//        printf( "ttwu %d-%d <%d>\n",  $p->tgid, $p->pid, vcpu_list[$p->pid] )
+//    }
+//}
+//probe kernel.function( "enqueue_task" ) {
+//    if( [$p->pid] in vcpu_list ) {
+//        printf( "enq %d-%d <%d>\n", $p->tgid, $p->pid, vcpu_list[$p->pid] )
+//    }
+//}
+
+//probe kernel.statement( "*@kernel/sched_fair.c:406" ) {
+//    tid = __task_pid($se)
+//    if( [tid] in vcpu_list ) {
+//        printf( "%s: %d <%d>\n", probefunc(), tid, vcpu_list[tid] )
+//    }
+//}
+
+
+//probe module("kvm").function( "kvm_emulate_halt" ) {
+//    printf( "%d %d H \"%s\" %d-%d\n", gettimeofday_us(), cpu(), execname(), pid(), tid() ); 
+//}

@@ -1,0 +1,42 @@
+#!/usr/bin/stap -v
+
+global vcpu_list
+global nr_identified_vcpu
+global debug_mode
+
+probe __scheduler.ctxswitch.tp {
+    curr_time = gettimeofday_us()
+    curr_cpu = cpu()
+    if( [next_tid] in vcpu_list ) {
+        //vm_id = next_pid
+        //vcpu_id = vcpu_list[next_tid]
+        //my_q = @cast($next->se->cfs_rq, "cfs_rq")
+        //my_q_se = my_q->tg->se[my_q->rq->cpu]
+        tg_shares = @cast($next->se->cfs_rq, "cfs_rq")->tg->shares
+        my_q_weight = @cast($next->se->cfs_rq, "cfs_rq")->tg->se[@cast($next->se->cfs_rq, "cfs_rq")->rq->cpu]->load->weight
+
+        //my_q_weight = my_q_se->load->weight;
+        //my_q_weight = $next->se->cfs_rq->tg->se[$next->se->cfs_rq->rq->cpu]->load->weight
+
+        printf( "%d %d D \"%s\" %d-%d (%d) <%d> -> \"%s\" %d-%d (%d) <%d>\n", 
+                curr_time, curr_cpu, 
+                prev_task_name, prev_pid, prev_tid, prevtsk_state, [prev_tid] in vcpu_list ? vcpu_list[prev_tid] : -1,
+                next_task_name, next_pid, next_tid, nexttsk_state, [next_tid] in vcpu_list ? vcpu_list[next_tid] : -1
+        )
+        ratio = my_q_weight * 100 / tg_shares
+        printf( "========> my_q_ratio =%d\n", ratio );
+    }
+}
+
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vm_id = pid()
+    tid = tid()
+    if( !([tid] in vcpu_list) ) {
+        vcpu_list[tid()] = $vcpu->vcpu_id
+        nr_identified_vcpu[vm_id]++
+
+        if( debug_mode ) {
+            printf( "%d %d L %d-%d <%d> %d\n", gettimeofday_us(), cpu(), vm_id, tid, $vcpu->vcpu_id, nr_identified_vcpu[vm_id] )
+        }
+    }
+}
