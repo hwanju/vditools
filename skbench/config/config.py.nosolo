@@ -1,0 +1,48 @@
+# This is an example of configuration file
+# this configuration is written as a python script, so after you edit, you should rename this file to config.py
+# The form of <field> is only configurable, so you should replace it with your configuration based on each comment
+
+import os
+import sys
+
+guests_img_root = '/root/vm_images'       # compatible for xen-tools package, <domain image directory>/<domain name>/disk.img is a root file system image
+mount_point = '/mnt/domains'                    # temporary mount point for examining and updating guest domain image
+gateway = '115.145.212.1'                           # guest's gateway (currently, we support a single gateway for all domainUs
+netmask = '255.255.255.0'                           # guest's netmask
+ip_map = {
+    # <domN name> should be the same as <domain name> in the above path including the domain image
+    # base is static string as a key, so don't change, but the value should be the same as <dom1 ip>
+    'ubuntu1': '115.145.212.177',
+    'ubuntu2': '115.145.212.178',
+	'fedora1': '115.145.212.179',
+	'fedora2': '115.145.212.180',
+}
+host_ip = '115.145.212.176'
+# specify rootfs path for each guest domain by means of either rootfs_dev or rootfs_map. 
+#rootfs_dev = 'xvda2'        # guest-side device name spcified in /etc/xen/<domain config file>. Sxbench inspects rootfs_map first.
+rootfs_map = {              # specify each path. It is useful when guest domains are heterogenous(PV, HVM, and Parallax are mixed)
+    'ubuntu1': '/root/vm_images/ubuntu1.qcow2',
+    'ubuntu2': '/root/vm_images/ubuntu2.qcow2',
+	'fedora1': '/mnt/backup/vm_images/fedora1.qcow2',
+	'fedora2': '/mnt/backup/vm_images/fedora2.qcow2',
+}
+# specify each config file path. If this is not defined, config file is '/etc/xen/<domain name>.cfg' by default
+# It can be usually omitted
+config_map = {              
+    'ubuntu1': '/root/kvm_conf/ubuntu1+1024.xml',
+    'ubuntu2': '/root/kvm_conf/ubuntu2+1024.xml',
+	'fedora1': '/root/kvm_conf/fedora1+1536.xml',
+	'fedora2': '/root/kvm_conf/fedora2+1536.xml',
+}
+
+active_guests = ['ubuntu1', 'ubuntu2', 'fedora1', 'fedora2']   # active guest's names who participate in the benchmark
+
+active_linux_guests = ['ubuntu1', 'ubuntu2', 'fedora1', 'fedora2']
+
+active_ubuntu_guests = ['ubuntu1', 'ubuntu2']
+
+active_fedora_guests = ['fedora1', 'fedora2']
+
+active_windows_guests = []
+
+dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]

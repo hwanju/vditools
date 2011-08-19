@@ -1,0 +1,48 @@
+# This is an example of configuration file
+# this configuration is written as a python script, so after you edit, you should rename this file to config.py
+# The form of <field> is only configurable, so you should replace it with your configuration based on each comment
+
+import os
+import sys
+
+guests_img_root = '/mnt/vm_images'       # compatible for xen-tools package, <domain image directory>/<domain name>/disk.img is a root file system image
+mount_point = '/mnt/domains'                    # temporary mount point for examining and updating guest domain image
+gateway = '115.145.212.1'                           # guest's gateway (currently, we support a single gateway for all domainUs
+netmask = '255.255.255.0'                           # guest's netmask
+ip_map = {
+    # <domN name> should be the same as <domain name> in the above path including the domain image
+    # base is static string as a key, so don't change, but the value should be the same as <dom1 ip>
+	'ubuntu_npb1': '115.145.212.177',
+	'ubuntu_npb2': '115.145.212.178',
+	'ubuntu_npb3': '115.145.212.179',
+	'ubuntu_npb4': '115.145.212.180',
+}
+host_ip = '115.145.212.176'
+# specify rootfs path for each guest domain by means of either rootfs_dev or rootfs_map. 
+#rootfs_dev = 'xvda2'        # guest-side device name spcified in /etc/xen/<domain config file>. Sxbench inspects rootfs_map first.
+rootfs_map = {              # specify each path. It is useful when guest domains are heterogenous(PV, HVM, and Parallax are mixed)
+	'ubuntu_npb1': '/mnt/vm_images/ubuntu_npb1.qcow2',
+	'ubuntu_npb2': '/mnt/vm_images/ubuntu_npb2.qcow2',
+	'ubuntu_npb3': '/mnt/vm_images/ubuntu_npb3.qcow2',
+	'ubuntu_npb4': '/mnt/vm_images/ubuntu_npb4.qcow2',
+}
+# specify each config file path. If this is not defined, config file is '/etc/xen/<domain name>.cfg' by default
+# It can be usually omitted
+config_map = {              
+	'ubuntu_npb1': '/root/kvm_conf/ubuntu_npb1+1024.xml',
+	'ubuntu_npb2': '/root/kvm_conf/ubuntu_npb2+1024.xml',
+	'ubuntu_npb3': '/root/kvm_conf/ubuntu_npb3+1024.xml',
+	'ubuntu_npb4': '/root/kvm_conf/ubuntu_npb4+1024.xml',
+}
+
+active_guests = ['ubuntu_npb1', 'ubuntu_npb2', 'ubuntu_npb3', 'ubuntu_npb4']   # active guest's names who participate in the benchmark
+
+active_linux_guests = ['ubuntu_npb1', 'ubuntu_npb2', 'ubuntu_npb3', 'ubuntu_npb4']
+
+active_ubuntu_guests = ['ubuntu_npb1', 'ubuntu_npb2', 'ubuntu_npb3', 'ubuntu_npb4']
+
+active_fedora_guests = []
+
+active_windows_guests = []
+
+dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]

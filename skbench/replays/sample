@@ -1,0 +1,5 @@
+prolog_script = 'dummy'
+epilog_script = 'dummy'
+trace_files = (
+	'test.trace',
+)

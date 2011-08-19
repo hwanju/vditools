@@ -1,0 +1,63 @@
+=======================================================
+=========== Simple Xen Benchmark (sxbench) ============
+=======================================================
+
+This benchmark is a simple Xen benchmark suite written in Python.
+It simply starts multiple domains, makes them run specified workloads, and collects results reported by each domain.
+It generates and runs bash shell scripts based on your specified workload.
+
+* How to use this tool
+1) Make your config file named config.py
+   You can reference config.py.example and change it for your setting
+   Note that the name is 'config.py'
+
+2) Make a workload file
+   The workload file is typically stored in 'workloads' directory.
+   You should specify three variables: prolog_script, epilog_script, workload_scripts.
+   All scripts should be written in the bash shell script and be located in the 'scripts' directory .
+   - prolog_script is run right before executing the workloads.
+   - epilog_script is run right after the workloads of all domains are finished.
+   - workloads_scripts is a list specifying in order what workload is run in each domain.
+   See several examples in 'workloads' directory.
+
+3) Prepare programs used by workloads in 'dist' directory
+   All programs in the 'dist' directory is copied to each domainU.
+   And the directory including these programs of each domain is automatically added into its 'PATH' environment variable.
+   So, you can write scripts, explained in 4), with all programs via its absolute path.
+
+4) Write the scripts specified by your workload file
+   Workload scripts are supported a few macros, which are automatically replaced with certain strings.
+     - WAIT_START_SIGNAL: this is for synchronization with workload start signal.
+                          Scripts below this macro are blocked until receiving a start signal from domain0.
+                          (upper-part scripts are run just after booting is complete)
+     - TO_DOM0: this is for reporting the result of domainU with pipe.
+                (e.g. cat result_file | TO_DOM0) 
+     - SEND_BOOT_SIGNAL: this macro sends a booting-complete signal to domain0.
+                         It is not needed if there is no script to run before notifying the booting completed.
+                         It is useful when there is a pre-task before workloads are started.
+   sxbench allows you to passing a private string argument to all the three scripts by using '-p' option.
+   A passed parameter is used by means of '$PRIVATE_ARG'
+   Workload scripts are added to 'rc.local' file of each domainU so that they is automatically run after booting.
+
+5) Run sxbench
+   sxbench currently supports two modes: manual mode and automatic mode.
+   - Manual mode: you can initiate and finish your workloads by sending signals to domain0 through TCP packets. 
+   Any remote or local machine can send the signals.
+   For example, to start, 
+        # send_signal $IP_DOM0 10001
+                to finish
+        # send_signal $IP_DOM0 10002
+
+   - Automatic mode: all domainUs are automatically run their workloads, finish them, and report their results to domain0.
+    
+    By default, manual mode is enabled. You can use the automatic mode with '-a' option.
+    '-n' option specifies the number of domains that are supposed to run the workloads.
+
+    With repect to some commands following options, you can type just 'sxbench' and show help messages. 
+
+    Example:
+        # sxbench -w workloads/disk_rndread.sxw -n 3 -p 1 -a start-stop
+
+* Authors
+- Hyeontaek Lim (paran@sparcs.kaist.ac.kr)
+- Hwanju Kim (hjukim@camars.kaist.ac.kr)
