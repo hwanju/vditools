@@ -1,0 +1,11 @@
+replay based guests vs. batch based guests
+auto setup (rc.local update to replay-based guests + save all guest)
+start-stop modification
+ - restore all guests
+ - prolog script
+ - send signal to batch-based guests
+ - replay trace (replay-based guests)
+ - wait end signal from guests
+ - prolog script
+ - shutdown all guests
+ - vm image handling for safe save/restore

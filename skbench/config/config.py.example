@@ -1,0 +1,43 @@
+# This is an example of configuration file
+# this configuration is written as a python script, so after you edit, you should rename this file to config.py
+# The form of <field> is only configurable, so you should replace it with your configuration based on each comment
+
+import os
+import sys
+
+guests_img_root = '<domain image directory>'       # compatible for xen-tools package, <domain image directory>/<domain name>/disk.img is a root file system image
+mount_point = '/mnt/domains'                    # temporary mount point for examining and updating guest domain image
+gateway = '<gateway>'                           # domU's gateway (currently, we support a single gateway for all domainUs
+netmask = '<netmask>'                           # domU's netmask
+ip_map = {
+    # <domN name> should be the same as <domain name> in the above path including the domain image
+    'base':        '<guest1 ip>',                 # base is static string as a key, so don't change, but the value should be the same as <dom1 ip>
+    '<guest1 name>': '<guest1 ip>',
+    '<guest2 name>': '<guest2 ip>',
+    '<guest3 name>': '<guest3 ip>',
+    '<guest4 name>': '<guest4 ip>',
+}
+host_ip = 'host ip address'
+# specify rootfs path for each guest domain by means of either rootfs_dev or rootfs_map. 
+#rootfs_dev = 'xvda2'        # guest-side device name spcified in /etc/xen/<domain config file>. Sxbench inspects rootfs_map first.
+rootfs_map = {              # specify each path. It is useful when guest domains are heterogenous(PV, HVM, and Parallax are mixed)
+    '<guest1 name>': '<guest1 rootfs path>',
+    '<guest2 name>': '<guest2 rootfs path>',
+    '<guest3 name>': '<guest3 rootfs path>',
+    '<guest4 name>': '<guest4 rootfs path>',
+}
+# specify each config file path. If this is not defined, config file is '/etc/xen/<domain name>.cfg' by default
+# It can be usually omitted
+config_map = {              
+    '<guest1 name>': '<guest1 config file path>',
+    '<guest2 name>': '<guest2 config file path>',
+    '<guest3 name>': '<guest3 config file path>',
+    '<guest4 name>': '<guest4 config file path>',
+}
+#host = '<host name>'
+active_guests = ['<dom1 name>', '<dom2 name>', '<dom3 name>', '<dom4 name>']   # active domainU's names who participate in the benchmark
+
+#vcpu_map = {
+#	'<guest1 name>': '<guest1 
+#}
+dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]
