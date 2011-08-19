@@ -1,0 +1,13 @@
+#!/usr/bin/stap -v
+
+probe kernel.trace("kvm_load_check") {
+        printf("%s %d %d %d %d %d %d\n", "LC", $op, $vm_id, $nr_load_entries, $load_period_msec, $start_load_time, $end_load_time)
+}
+
+probe kernel.trace("kvm_vcpu_load") {
+        printf("%s %d %d %d %d %d\n", "VL", $vm_id, $vcpu_id, $cur_load_idx, $load_idx, $cpu_load)
+}
+
+probe kernel.trace("kvm_gthread_load") {
+        printf("%s %d %d %x %d %d %d\n", "TL", $vm_id, $vcpu_id, $guest_task_id, $cur_load_idx, $load_idx, $cpu_load)
+}
