@@ -1,0 +1,9 @@
+This document describes how to use the tools for analyzing VDI results.
+
+1. Load monitoring
+# systemtap/vdi_load.stp > load.dump
+# ./load_profile.py load.dump
+
+1) The above generates 'load-vm<vm_id>-vcpu<vcpu_id>-id<profile_id>.dat'.
+2) Each file includes epoch id, physical time for each epoch, time taken by vcpu, time taken by guest threads.
+3) Each file also includes information about a UI event corresponding to this load profile at the first line.
