@@ -1,9 +1,15 @@
 This document describes how to use the tools for analyzing VDI results.
 
+0. Requirements
+- systemtap
+- gnuplot
+
 1. Load monitoring
 # systemtap/vdi_load.stp > load.dump
 # ./load_profile.py load.dump
+# ./mkplt_load_profile.sh <vm_id> <profile_id>
 
 1) The above generates 'load-vm<vm_id>-vcpu<vcpu_id>-id<profile_id>.dat'.
 2) Each file includes epoch id, physical time for each epoch, time taken by vcpu, time taken by guest threads.
 3) Each file also includes information about a UI event corresponding to this load profile at the first line.
+4) mkplt_load_profile.sh generates 'load-vm<vm_id>-id<profile_id>.eps, which is a graph-style profile
