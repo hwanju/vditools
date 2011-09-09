@@ -1,0 +1,36 @@
+#!/usr/bin/stap -v
+
+global vcpu_list
+global log_enabled
+global log_start_time
+
+probe begin {
+        log_enabled = 0
+}
+
+probe kernel.trace("kvm_ui") {
+        if ($event_type == 1 || $event_type == 3) {
+                log_enabled = 1
+                log_start_time = gettimeofday_us()
+        }
+}
+
+probe __scheduler.ctxswitch.tp {
+    curr_time = gettimeofday_us()
+    curr_cpu = cpu()
+    if( log_enabled && [next_tid] in vcpu_list ) {
+        vm_id = next_pid
+        vcpu_id = vcpu_list[next_tid]
+        tg_shares = @cast($next->se->cfs_rq, "cfs_rq")->tg->shares
+        my_q_weight = @cast($next->se->cfs_rq, "cfs_rq")->tg->se[@cast($next->se->cfs_rq, "cfs_rq")->rq->cpu]->load->weight
+
+        //ratio = my_q_weight * 100 / tg_shares
+        printf("%d %d %d %d %d %d\n", curr_time - log_start_time, vm_id, vcpu_id, curr_cpu, my_q_weight, tg_shares)
+    }
+}
+
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    tid = tid()
+    if( !([tid] in vcpu_list) ) 
+        vcpu_list[tid()] = $vcpu->vcpu_id
+}
