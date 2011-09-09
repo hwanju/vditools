@@ -13,3 +13,18 @@ This document describes how to use the tools for analyzing VDI results.
 2) Each file includes epoch id, physical time for each epoch, time taken by vcpu, time taken by guest threads.
 3) Each file also includes information about a UI event corresponding to this load profile at the first line.
 4) mkplt_load_profile.sh generates 'load-vm<vm_id>-id<profile_id>.eps, which is a graph-style profile
+5) To verify load data, run 
+# verify_load_dat.plx <load data files, e.g., load*.dat>
+Then it reports errors of load monitoing.
+
+
+2. Share ratio monitoring
+# ./group_share.sh
+
+1) It records the following tuple:
+(time in us, vm id, vcpu id, pcpu id, vcpu's per-cpu group runq's share, total group share)
+This tuple is recorded when a vcpu is scheduled (arrives at a pcpu).
+This recorded file is written in /dev/shm/gshare.dat on the fly to avoid disk overheads of logging.
+(But, /dev/shm is currently used by Ubuntu dist, so for other dists, use alternative tmpfs dir)
+
+2) Then, it does simple plotting with dot (current version is simple, but will be refined)
