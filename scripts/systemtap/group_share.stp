@@ -9,7 +9,7 @@ probe begin {
 }
 
 probe kernel.trace("kvm_ui") {
-        if ($event_type == 1 || $event_type == 3) {
+        if (!log_enabled && ($event_type == 1 || $event_type == 3)) {
                 log_enabled = 1
                 log_start_time = gettimeofday_us()
         }
