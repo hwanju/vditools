@@ -30,6 +30,7 @@ EOF
 `
 origin=$total_h
 
+col_id=1
 echo > $plt_str_fn
 for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
         dat_fn="load-vm$vm_id-vcpu$vcpu_id-id$profile_id.dat"
@@ -46,14 +47,17 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
         # add new line
         plot_str="plot '$dat_fn'"
 
-        pat_id=1
         for c in `seq 4 $nr_cols`; do 
                 gtid=`echo $label | awk -v c=$c '{print $c}'` 
+                if [ -z ${gtid_to_id[0x$gtid]} ]; then
+                    gtid_to_id[0x$gtid]=$col_id
+                    col_id=$(( $col_id + 1 ))
+                fi
                 if [ $c != 4 ]; then
                         plot_str="$plot_str, ''"
                 fi
-                plot_str="$plot_str u (\$$c / \$2) t '$gtid' fs pattern $pat_id"
-                pat_id=$(( $pat_id + 1 ))
+                solid_id=${gtid_to_id[0x$gtid]}
+                plot_str="$plot_str u (\$$c / \$2) t '$gtid' fs solid $solid_id"
         done
         origin=`bc << EOF
 $origin - $h
@@ -90,4 +94,4 @@ unset multiplot
 EOF
 gnuplot $plt_fn
 
-rm -f $plt_str_fn
+#rm -f $plt_str_fn
