@@ -37,10 +37,12 @@ class VCPU_Load_Info:
                 self.vm_id = vm_id
                 self.vcpu_id = vcpu_id
                 self.nr_load_entries = nr_load_entries
-                self.cpu_load = [0] * (nr_load_entries * 20)    # FIXME: remove hardcoded number
+                self.cpu_load  = [0] * (nr_load_entries * 20)    # FIXME: remove hardcoded number
+                self.run_delay = [0] * (nr_load_entries * 20)    # FIXME: remove hardcoded number
                 self.invalid_load = 0 
                 self.gthread_load_info = {}
-                self.load_idx = 0
+                self.load_idx = 0               # increment every load setting
+                self.start_load_idx = 0         # updated only by update_load_idx
                 self.set_load(cur_load_idx, load_idx, cpu_load)
 
         def set_load(self, cur_load_idx, load_idx, cpu_load):
@@ -61,22 +63,42 @@ class VCPU_Load_Info:
                         self.gthread_load_info[guest_task_id] = Gthread_Load_Info(guest_task_id, vcpu_id, cur_load_idx, 
                                         load_idx, cpu_load, self.nr_load_entries, vm_load_info[self.vm_id].get_start_load_idx())
 
+        ### called at load check entry (LC 1)
         def update_load_idx(self, start_load_idx):
+                self.start_load_idx = start_load_idx
                 self.load_idx = start_load_idx
                 self.invalid_load = 0
                 for gtid in self.gthread_load_info:
                         self.gthread_load_info[gtid].update_load_idx(start_load_idx)
 
+        ### called at load check entry (LC 1) & load check exit (LC 0)
+        def make_run_delay_ratio(self, start_load_time, end_load_time): 
+                monitor_period = end_load_time - start_load_time 
+                run_time = 0
+                for i in range(self.start_load_idx, self.load_idx):
+                        run_time += self.cpu_load[i]
+                desched_period = monitor_period - run_time
+                for i in range(self.start_load_idx, self.load_idx):
+                        self.run_delay[i] = float(self.run_delay[i]) / desched_period
+                        if self.run_delay[i] > 1.0:             # small error is possible
+                                self.run_delay[i] = 1.0
+
+
+        def set_run_delay(self, start_load_idx, run_delay):
+                for i in range(start_load_idx, self.load_idx):
+                        self.run_delay[i] = run_delay
+
         def report_load(self, ofile, start_load_time, end_load_time):
+                # ui event info: FIXME
                 start_load_idx = vm_load_info[self.vm_id].load_idx_by_time(start_load_time)
                 end_load_idx   = vm_load_info[self.vm_id].load_idx_by_time(end_load_time)
-
-                # ui event info
                 ofile.write("# ui_event: epoch=%d offset=%d\n" % (abs(end_load_idx-start_load_idx) - 1, start_load_time % vm_load_info[self.vm_id].get_load_period()))
+
                 # print label
                 ofile.write("%-10s%-10s%-10s" % ("#epoch", "ptime", "vcpu"))
                 for gtid in self.gthread_load_info:
                         ofile.write("%-10s" % gtid)
+                ofile.write("%-10s" % "run_delay_ratio")
                 ofile.write("\n")
 
                 invalid_load = 0
@@ -93,6 +115,10 @@ class VCPU_Load_Info:
                         # gthread load
                         for gtid in self.gthread_load_info:
                                 self.gthread_load_info[gtid].report_load(ofile, i)
+                        
+                        # vcpu run_delay
+                        ofile.write("%-10.3lf" % self.run_delay[i])
+
                         ofile.write("\n")
 
                 self.clear()
@@ -108,7 +134,9 @@ class VM_Load_Info:
                 self.set_info(vm_id, nr_load_entries, load_period_msec, start_load_time, end_load_time)
 
         def set_info(self, vm_id, nr_load_entries, load_period_msec, start_load_time, end_load_time):
-                self.update_load_idx()
+                if self.load_seqnum > 0:
+                        self.make_run_delay_ratio(self.start_load_time, self.end_load_time)
+                self.update_load_idx(start_load_time)
 
                 self.load_seqnum = self.load_seqnum + 1
                 self.vm_id = vm_id
@@ -117,9 +145,10 @@ class VM_Load_Info:
                 self.start_load_time = start_load_time
                 self.end_load_time = end_load_time
 
-        def update_load_idx(self):
+        def update_load_idx(self, start_load_time):
                 if self.load_seqnum == 0:
                         self.start_load_idx = 0
+                        self.monitor_start_time = start_load_time
                 elif self.load_seqnum == 1:
                         self.start_load_idx = self.nr_load_entries - 1
                 elif self.load_seqnum > 1:
@@ -127,6 +156,10 @@ class VM_Load_Info:
 
                 for vcpu_id in self.vcpu_load_info.keys():
                         self.vcpu_load_info[vcpu_id].update_load_idx(self.start_load_idx)
+
+        def make_run_delay_ratio(self, start_load_time, end_load_time):
+                for vcpu_id in self.vcpu_load_info.keys():
+                        self.vcpu_load_info[vcpu_id].make_run_delay_ratio(start_load_time, end_load_time)
 
         def get_start_load_idx(self):
                 return self.start_load_idx
@@ -146,6 +179,10 @@ class VM_Load_Info:
                 else:
                         self.vcpu_load_info[vcpu_id] = VCPU_Load_Info(self.vm_id, vcpu_id, cur_load_idx, load_idx, cpu_load, self.nr_load_entries)
 
+        def set_run_delay(self, vcpu_id, run_delay):
+                if (vcpu_id in self.vcpu_load_info):
+                        self.vcpu_load_info[vcpu_id].set_run_delay(self.start_load_idx, run_delay)
+
         def set_gthread_load(self, vcpu_id, guest_task_id, cur_load_idx, load_idx, cpu_load):
                 self.vcpu_load_info[vcpu_id].set_gthread_load(guest_task_id, vcpu_id, cur_load_idx, load_idx, cpu_load)
 
@@ -153,6 +190,7 @@ class VM_Load_Info:
                 self.vcpu_load_info.clear()
 
         def report_load(self):
+                self.make_run_delay_ratio(self.start_load_time, self.end_load_time)
                 for vcpu_id in self.vcpu_load_info.keys():
                         ofile = open("load-vm%d-vcpu%d-id%d.dat" % (self.vm_id, vcpu_id, self.profile_id), 'w')
                         # print global information
@@ -167,6 +205,7 @@ class VM_Load_Info:
 load_check_event   = re.compile(r'''LC ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
 vcpu_load_event    = re.compile(r'''VL ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
 gthread_load_event = re.compile(r'''TL ([0-9]+) ([0-9]+) ([0-9a-f]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
+run_delay_event    = re.compile(r'''RD ([0-9]+) ([0-9]+) ([0-9]+)''')
 
 if (len(sys.argv) != 2):
         print "Usage: %s <load dump file>" % sys.argv[0]
@@ -194,6 +233,11 @@ for line in load_file:
         if not (p == None):
                 vm_id = int(p.group(1))
                 vm_load_info[vm_id].set_vcpu_load(int(p.group(2)), int(p.group(3)), int(p.group(4)), int(p.group(5)))
+                continue
+        p = run_delay_event.search(line);
+        if not (p == None):
+                vm_id = int(p.group(1))
+                vm_load_info[vm_id].set_run_delay(int(p.group(2)), int(p.group(3)))
                 continue
         p = gthread_load_event.search(line);
         if not (p == None):

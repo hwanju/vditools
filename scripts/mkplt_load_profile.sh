@@ -41,13 +41,12 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
         xmax=`wc -l $dat_fn | awk '{print $1}'` # (# of epoch + 2), 2 is used for margin of legends 
 
         nr_cols=`tail -1 $dat_fn | awk '{print NF}'`
-        nr_gthreads=$(( $nr_cols - 3 ))
         label=`head -2 $dat_fn | tail -1`
 
         # add new line
         plot_str="plot '$dat_fn'"
 
-        for c in `seq 4 $nr_cols`; do 
+        for c in `seq 4 $(( $nr_cols - 1 ))`; do 
                 gtid=`echo $label | awk -v c=$c '{print $c}'` 
                 if [ -z ${gtid_to_id[0x$gtid]} ]; then
                     gtid_to_id[0x$gtid]=$col_id
@@ -59,6 +58,7 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
                 solid_id=${gtid_to_id[0x$gtid]}
                 plot_str="$plot_str u (\$$c / \$2):xtic(every10th(0)) t '$gtid' fs solid $solid_id"
         done
+        plot_str="$plot_str, '' u 1:$nr_cols t 'Wait time ratio' lt 1 lw 2 axis x1y2 w lp"
         origin=`bc << EOF
 $origin - $h
 EOF
@@ -73,16 +73,19 @@ plot_str=`cat $plt_str_fn`
 
 cat > $plt_fn << EOF
 set terminal postscript eps enhanced color
-set terminal post "Times-Roman" 15
+set terminal post "Times-Roman" 10
 set output '$eps_fn'
 set size 1,$total_h
 set multiplot layout $nr_vcpus,1
 set key vertical right
 set xlabel "Load epoch number"
 set ylabel "CPU usage (%)" 
+set y2label "Wait time ratio"
 set xrange [-0.5:$xmax]
 set yrange [0:1]
+set y2range [0:1]
 set xtics 0,1
+set xtics nomirror
 #set ytics 0,20
 set grid y
 set style data histograms
