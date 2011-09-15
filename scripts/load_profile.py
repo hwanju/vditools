@@ -4,44 +4,68 @@ import sys
 import re
 
 class Gthread_Load_Info:
-        def __init__(self, guest_task_id, vcpu_id, cur_load_idx, load_idx, cpu_load, nr_load_entries):
+        def __init__(self, guest_task_id, vcpu_id, cur_load_idx, load_idx, cpu_load, nr_load_entries, start_load_idx):
                 self.guest_task_id = guest_task_id
                 self.vcpu_id = vcpu_id
                 self.nr_load_entries = nr_load_entries
-                self.cpu_load = [0] * nr_load_entries
+                self.cpu_load = [0] * (nr_load_entries * 20)    # FIXME: remove hardcoded number
                 self.invalid_load = 0 
+                self.load_idx = start_load_idx
                 self.set_load(cur_load_idx, load_idx, cpu_load)
 
         def set_load(self, cur_load_idx, load_idx, cpu_load):
-                self.cur_load_idx = cur_load_idx
-                self.cpu_load[load_idx] = cpu_load
+                if self.invalid_load == 0:
+                        self.cpu_load[self.load_idx] = cpu_load
+                else:
+                        self.cpu_load[self.load_idx] = 0
+
+                self.load_idx = self.load_idx + 1
+
+                if load_idx == cur_load_idx:
+                        self.invalid_load = 1
+                
+
+        def update_load_idx(self, start_load_idx):
+                self.load_idx = start_load_idx
+                self.invalid_load = 0
 
         def report_load(self, ofile, load_idx):
-                if (self.invalid_load == 0):
-                        ofile.write("%-10d" % self.cpu_load[load_idx])
-                else:
-                        ofile.write("%-10d" % 0)
-                if (load_idx == self.cur_load_idx):
-                        self.invalid_load = 1
+                ofile.write("%-10d" % self.cpu_load[load_idx])
 
 class VCPU_Load_Info:
         def __init__(self, vm_id, vcpu_id, cur_load_idx, load_idx, cpu_load, nr_load_entries):
                 self.vm_id = vm_id
                 self.vcpu_id = vcpu_id
                 self.nr_load_entries = nr_load_entries
-                self.cpu_load = [0] * nr_load_entries
-                self.set_load(cur_load_idx, load_idx, cpu_load)
+                self.cpu_load = [0] * (nr_load_entries * 20)    # FIXME: remove hardcoded number
+                self.invalid_load = 0 
                 self.gthread_load_info = {}
+                self.load_idx = 0
+                self.set_load(cur_load_idx, load_idx, cpu_load)
 
         def set_load(self, cur_load_idx, load_idx, cpu_load):
-                self.cur_load_idx = cur_load_idx
-                self.cpu_load[load_idx] = cpu_load
+                if self.invalid_load == 0:
+                        self.cpu_load[self.load_idx] = cpu_load
+                else:
+                        self.cpu_load[self.load_idx] = 0
+
+                self.load_idx = self.load_idx + 1
+
+                if load_idx == cur_load_idx:
+                        self.invalid_load = 1
 
         def set_gthread_load(self, guest_task_id, vcpu_id, cur_load_idx, load_idx, cpu_load):
                 if (guest_task_id in self.gthread_load_info):
                         self.gthread_load_info[guest_task_id].set_load(cur_load_idx, load_idx, cpu_load)
                 else:
-                        self.gthread_load_info[guest_task_id] = Gthread_Load_Info(guest_task_id, vcpu_id, cur_load_idx, load_idx, cpu_load, self.nr_load_entries)
+                        self.gthread_load_info[guest_task_id] = Gthread_Load_Info(guest_task_id, vcpu_id, cur_load_idx, 
+                                        load_idx, cpu_load, self.nr_load_entries, vm_load_info[self.vm_id].get_start_load_idx())
+
+        def update_load_idx(self, start_load_idx):
+                self.load_idx = start_load_idx
+                self.invalid_load = 0
+                for gtid in self.gthread_load_info:
+                        self.gthread_load_info[gtid].update_load_idx(start_load_idx)
 
         def report_load(self, ofile, start_load_time, end_load_time):
                 start_load_idx = vm_load_info[self.vm_id].load_idx_by_time(start_load_time)
@@ -55,34 +79,22 @@ class VCPU_Load_Info:
                         ofile.write("%-10s" % gtid)
                 ofile.write("\n")
 
-                load_idx = (end_load_idx + 1) % self.nr_load_entries
                 invalid_load = 0
-                for i in range(self.nr_load_entries):
+                for i in range(self.load_idx + 8):        # FIXME
                         # epoch
                         ofile.write("%-10d" % i)
 
                         # ptime
-                        if (load_idx != end_load_idx):
-                                ofile.write("%-10d" % vm_load_info[self.vm_id].get_load_period())
-                        else:
-                                ofile.write("%-10d" % (end_load_time % vm_load_info[self.vm_id].get_load_period()))
+                        ofile.write("%-10d" % vm_load_info[self.vm_id].get_load_period())
 
                         # vcpu load
-                        if (invalid_load == 0):
-                                ofile.write("%-10d" % self.cpu_load[load_idx])
-                        else:
-                                ofile.write("%-10d" % 0)
+                        ofile.write("%-10d" % self.cpu_load[i])
 
                         # gthread load
                         for gtid in self.gthread_load_info:
-                                self.gthread_load_info[gtid].report_load(ofile, load_idx)
+                                self.gthread_load_info[gtid].report_load(ofile, i)
                         ofile.write("\n")
 
-                        if (load_idx == end_load_idx):
-                                break
-                        if (load_idx == self.cur_load_idx):
-                                invalid_load = 1
-                        load_idx = (load_idx + 1) % self.nr_load_entries
                 self.clear()
         
         def clear(self):
@@ -90,20 +102,40 @@ class VCPU_Load_Info:
 
 class VM_Load_Info:
         def __init__(self, vm_id, nr_load_entries, load_period_msec, start_load_time, end_load_time):
-                self.profile_id = 0
-                self.set_info(vm_id, nr_load_entries, load_period_msec, start_load_time, end_load_time)
+                self.profile_id = 1
+                self.load_seqnum = 0
                 self.vcpu_load_info = {}
+                self.set_info(vm_id, nr_load_entries, load_period_msec, start_load_time, end_load_time)
 
         def set_info(self, vm_id, nr_load_entries, load_period_msec, start_load_time, end_load_time):
-                self.profile_id = self.profile_id + 1
+                self.update_load_idx()
+
+                self.load_seqnum = self.load_seqnum + 1
                 self.vm_id = vm_id
                 self.nr_load_entries = nr_load_entries
                 self.load_period_msec = load_period_msec
                 self.start_load_time = start_load_time
                 self.end_load_time = end_load_time
 
+        def update_load_idx(self):
+                if self.load_seqnum == 0:
+                        self.start_load_idx = 0
+                elif self.load_seqnum == 1:
+                        self.start_load_idx = self.nr_load_entries - 1
+                elif self.load_seqnum > 1:
+                        self.start_load_idx = self.start_load_idx + self.nr_loads()
+
+                for vcpu_id in self.vcpu_load_info.keys():
+                        self.vcpu_load_info[vcpu_id].update_load_idx(self.start_load_idx)
+
+        def get_start_load_idx(self):
+                return self.start_load_idx
+
         def load_idx_by_time(self, time_in_ns):
                 return (time_in_ns / 1000000 / self.load_period_msec) % self.nr_load_entries 
+
+        def nr_loads(self):
+                return (self.end_load_time / 1000000 / self.load_period_msec) - (self.start_load_time / 1000000 / self.load_period_msec)
 
         def get_load_period(self):
                 return self.load_period_msec * 1000000  # in ns
@@ -117,6 +149,9 @@ class VM_Load_Info:
         def set_gthread_load(self, vcpu_id, guest_task_id, cur_load_idx, load_idx, cpu_load):
                 self.vcpu_load_info[vcpu_id].set_gthread_load(guest_task_id, vcpu_id, cur_load_idx, load_idx, cpu_load)
 
+        def clear(self):
+                self.vcpu_load_info.clear()
+
         def report_load(self):
                 for vcpu_id in self.vcpu_load_info.keys():
                         ofile = open("load-vm%d-vcpu%d-id%d.dat" % (self.vm_id, vcpu_id, self.profile_id), 'w')
@@ -124,8 +159,10 @@ class VM_Load_Info:
                         self.vcpu_load_info[vcpu_id].report_load(ofile, self.start_load_time, self.end_load_time)
                         ofile.close()
                 self.clear()
-        def clear(self):
-                self.vcpu_load_info.clear()
+                self.load_seqnum = 0
+
+        def inc_profile_id(self):
+                self.profile_id = self.profile_id + 1
 
 load_check_event   = re.compile(r'''LC ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
 vcpu_load_event    = re.compile(r'''VL ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
@@ -151,6 +188,7 @@ for line in load_file:
                                 vm_load_info[vm_id] = VM_Load_Info(vm_id, int(p.group(3)), int(p.group(4)), int(p.group(5)), int(p.group(6)))
                 else:           # exit
                         vm_load_info[vm_id].report_load()
+                        vm_load_info[vm_id].inc_profile_id()
                 continue
         p = vcpu_load_event.search(line);
         if not (p == None):

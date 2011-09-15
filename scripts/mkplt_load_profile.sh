@@ -57,7 +57,7 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
                         plot_str="$plot_str, ''"
                 fi
                 solid_id=${gtid_to_id[0x$gtid]}
-                plot_str="$plot_str u (\$$c / \$2) t '$gtid' fs solid $solid_id"
+                plot_str="$plot_str u (\$$c / \$2):xtic(every10th(0)) t '$gtid' fs solid $solid_id"
         done
         origin=`bc << EOF
 $origin - $h
@@ -89,9 +89,10 @@ set style data histograms
 set style histogram rowstacked
 set style fill solid border 0.2
 set boxwidth 1
+every10th(col) = (int(column(col))%10 ==0)?stringcolumn(1):""
 $plot_str
 unset multiplot
 EOF
 gnuplot $plt_fn
 
-#rm -f $plt_str_fn
+rm -f $plt_str_fn
