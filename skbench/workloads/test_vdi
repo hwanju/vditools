@@ -1,5 +1,5 @@
 prolog_script = 'dummy'
 epilog_script = 'dummy'
-trace_files = (
-	'test.trace',
+workload_scripts = (
+	'test_vdi_loadgen',
 )

@@ -1,0 +1,35 @@
+export DISPLAY=:0
+PORT_MAP="5924"
+SETUP_MAP=("/root/traces/test_setup.trace")
+TRACE_MAP=("/root/traces/test_trace.trace")
+
+i=0
+for port in $PORT_MAP
+do
+	spicec -h 115.145.212.176 -p $port -P ${SETUP_MAP[i]} > /dev/null &
+	let i=i+1
+done
+
+wait_signal_64 $i 30000
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+sleep 3
+
+i=0
+for port in $PORT_MAP
+do
+	spicec -h 115.145.212.176 -p $port -P ${TRACE_MAP[i]} > /dev/null &
+	let i=i+1
+done
+
+wait_signal_64 $i 30001
+
+SPICE_PIDS=($(ps | grep spicec | awk '{print $1}'))
+for pid in ${SPICE_PIDS[@]}
+do
+	kill $pid
+done
+
+echo end | TO_HOST
