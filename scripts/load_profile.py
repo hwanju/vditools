@@ -74,12 +74,14 @@ class VCPU_Load_Info:
         ### called at load check entry (LC 1) & load check exit (LC 0)
         def make_run_delay_ratio(self, start_load_time, end_load_time): 
                 monitor_period = end_load_time - start_load_time 
-                run_time = 0
+
+                ### denominator: desched_period -> monitor_period
+                ###run_time = 0
+                ###for i in range(self.start_load_idx, self.load_idx):
+                ###        run_time += self.cpu_load[i]
+                ###desched_period = monitor_period - run_time
                 for i in range(self.start_load_idx, self.load_idx):
-                        run_time += self.cpu_load[i]
-                desched_period = monitor_period - run_time
-                for i in range(self.start_load_idx, self.load_idx):
-                        self.run_delay[i] = float(self.run_delay[i]) / desched_period
+                        self.run_delay[i] = float(self.run_delay[i]) / monitor_period
                         if self.run_delay[i] > 1.0:             # small error is possible
                                 self.run_delay[i] = 1.0
 
