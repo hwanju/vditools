@@ -1,9 +1,16 @@
 =======================================================
-=========== Simple Xen Benchmark (sxbench) ============
+=========== Simple KVM Benchmark (skbench) ============
 =======================================================
 
-This benchmark is a simple Xen benchmark suite written in Python.
-It simply starts multiple domains, makes them run specified workloads, and collects results reported by each domain.
+Tested under:
+	vdikernel
+	vdiqemu
+	libvirt 0.9.4
+	spiceplay
+	qemu-kvm 0.15.0
+
+This benchmark is a simple KVM benchmark suite written in Python.
+It simply restores multiple guests, makes them run specified workloads, and collects results reported by each guest.
 It generates and runs bash shell scripts based on your specified workload.
 
 * How to use this tool
@@ -16,48 +23,39 @@ It generates and runs bash shell scripts based on your specified workload.
    You should specify three variables: prolog_script, epilog_script, workload_scripts.
    All scripts should be written in the bash shell script and be located in the 'scripts' directory .
    - prolog_script is run right before executing the workloads.
-   - epilog_script is run right after the workloads of all domains are finished.
+   - epilog_script is run right after the workloads of all guests are finished.
    - workloads_scripts is a list specifying in order what workload is run in each domain.
    See several examples in 'workloads' directory.
 
 3) Prepare programs used by workloads in 'dist' directory
-   All programs in the 'dist' directory is copied to each domainU.
-   And the directory including these programs of each domain is automatically added into its 'PATH' environment variable.
+   All programs in the 'dist' directory is copied to each guests and host under a root directory.
+   And the directory including these programs of each guest is automatically added into its 'PATH' environment variable.
    So, you can write scripts, explained in 4), with all programs via its absolute path.
 
 4) Write the scripts specified by your workload file
    Workload scripts are supported a few macros, which are automatically replaced with certain strings.
      - WAIT_START_SIGNAL: this is for synchronization with workload start signal.
-                          Scripts below this macro are blocked until receiving a start signal from domain0.
-                          (upper-part scripts are run just after booting is complete)
-     - TO_DOM0: this is for reporting the result of domainU with pipe.
-                (e.g. cat result_file | TO_DOM0) 
-     - SEND_BOOT_SIGNAL: this macro sends a booting-complete signal to domain0.
+                          Scripts below this macro are blocked until receiving a start signal from host machine.
+                          (upper-part scripts are automatically run via remote execution  by skbench)
+     - TO_HOST: this is for reporting the result of a guest with pipe.
+                (e.g. cat result_file | TO_HOST) 
+     - SEND_READY_SIGNAL: this macro sends a ready signal to host.
                          It is not needed if there is no script to run before notifying the booting completed.
                          It is useful when there is a pre-task before workloads are started.
-   sxbench allows you to passing a private string argument to all the three scripts by using '-p' option.
+   skbench allows you to passing a private string argument to all the three scripts by using '-p' option.
    A passed parameter is used by means of '$PRIVATE_ARG'
-   Workload scripts are added to 'rc.local' file of each domainU so that they is automatically run after booting.
 
-5) Run sxbench
-   sxbench currently supports two modes: manual mode and automatic mode.
-   - Manual mode: you can initiate and finish your workloads by sending signals to domain0 through TCP packets. 
-   Any remote or local machine can send the signals.
-   For example, to start, 
-        # send_signal $IP_DOM0 10001
-                to finish
-        # send_signal $IP_DOM0 10002
+5) Run skbench
+   skbench currently supports automatic mode only.
+   
+   all guestss are automatically run their workloads, finish them, and report their results to host.
 
-   - Automatic mode: all domainUs are automatically run their workloads, finish them, and report their results to domain0.
-    
-    By default, manual mode is enabled. You can use the automatic mode with '-a' option.
-    '-n' option specifies the number of domains that are supposed to run the workloads.
-
-    With repect to some commands following options, you can type just 'sxbench' and show help messages. 
+    With repect to some commands following options, you can type just 'skbench' and show help messages. 
 
     Example:
-        # sxbench -w workloads/disk_rndread.sxw -n 3 -p 1 -a start-stop
+        # skbench -w workloads/disk_rndread.skw -p 1 start-stop
 
 * Authors
+- Sangwook Kim (swkim@csl.skku.edu)
 - Hyeontaek Lim (paran@sparcs.kaist.ac.kr)
 - Hwanju Kim (hjukim@camars.kaist.ac.kr)
