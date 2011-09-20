@@ -8,7 +8,7 @@ probe kernel.trace("kvm_load_check") {
 }
 
 probe kernel.trace("kvm_vcpu_run_delay") {
-        printf("%s %d %d %d\n", "RD", $vm_id, $vcpu_id, $run_delay)
+        printf("%s %d %d %d %d %x\n", "RD", $vm_id, $vcpu_id, $run_delay, $delta_load_pct, $flags)
 }
 
 probe kernel.trace("kvm_vcpu_load") {

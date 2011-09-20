@@ -81,6 +81,8 @@ class VCPU_Load_Info:
                 ###        run_time += self.cpu_load[i]
                 ###desched_period = monitor_period - run_time
                 for i in range(self.start_load_idx, self.load_idx):
+                        #if float(self.run_delay[i]) / monitor_period > 1:
+                        #        print "DEBUG: id%d v%d load_idx=%d run_delay=%d, monitor_period=%d, ratio=%.4lf" % (vm_load_info[self.vm_id].get_profile_id(), self.vcpu_id, i, self.run_delay[i], monitor_period, float(self.run_delay[i]) / monitor_period)
                         self.run_delay[i] = float(self.run_delay[i]) / monitor_period
                         if self.run_delay[i] > 1.0:             # small error is possible
                                 self.run_delay[i] = 1.0
@@ -203,6 +205,9 @@ class VM_Load_Info:
 
         def inc_profile_id(self):
                 self.profile_id = self.profile_id + 1
+
+        def get_profile_id(self):
+                return self.profile_id
 
 load_check_event   = re.compile(r'''LC ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
 vcpu_load_event    = re.compile(r'''VL ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+) ([0-9]+)''')
