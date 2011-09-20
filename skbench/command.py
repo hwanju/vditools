@@ -5,24 +5,35 @@ import time
 from control import Control
 from config import *
 
-def update(test):
-	for n in range(1, len(active_guests) + 1):
-		guest = active_guests[n - 1]
-		assert n in test.job
+def update(test, n, guest):
+	# copy distribution files
+	ret = os.system('scp -r ./dist %s:~/dist' % ip_map[guest])
+	assert ret == 0
 
-		# copy distribution files
-		ret = os.system('scp -r ./dist %s:~/dist' % ip_map[guest])
-		assert ret == 0
+	# generate workload
+	f = file('/tmp/skbench_job', 'w')
+	f.write(augmented_job(test, n) + '\n')
+	f.close()
+	os.chmod('/tmp/skbench_job', 0755)
 
-		# generate workload
-		f = file('/tmp/skbench_job', 'w')
-		f.write(augmented_job(test, n) + '\n')
-		f.close()
-		os.chmod('/tmp/skbench_job', 0755)
+	# copy a workload script to a corresponding guest's home dir
+	ret = os.system('scp /tmp/skbench_job %s:~/job' % ip_map[guest])
+	assert ret == 0
 
-		# copy a workload script to a corresponding guest	
-		ret = os.system('scp /tmp/skbench_job %s:~/job' % ip_map[guest])
-		assert ret == 0
+def update_client(test, n):
+	# copy distribution files
+	ret = os.system('scp -r ./dist %s:~/dist' % client_machine_ip)
+	assert ret == 0
+
+	# generate workload
+	f = file('/tmp/skbench_job', 'w')
+	f.write(augmented_job(test, n) + '\n')
+	f.close()
+	os.chmod('/tmp/skbench_job', 0755)
+
+	# copy a workload scropt to a corresponding guest's home dir
+	ret = os.system('scp /tmp/skbench_job %s:~/job' % client_machine_ip)
+	assert ret == 0
 
 def augmented_job(test, n):
 	s = ''
@@ -64,12 +75,18 @@ def augmented_job(test, n):
 def start(test):
 	ctl = Control()
 
-	for guest in saved_guests: 
+	for n in range(1, len(active_guests) + 1): 
+		assert n in test.job
+		guest = active_guests[n - 1]
 		ctl.restore(guest)
-		ret = os.system('sleep 5')
-		assert ret == 0
+		update(test, n, guest)
+
+	if trace_replay == 1:
+		n = len(active_guests) + 1
+		update_client(test, n)
 	
-	update(test)
+	for guest in trace_guests:
+		ctl.restore(guest)
 
 	f = file('/tmp/host_job', 'w')
 	f.write(augmented_job(test, 0))

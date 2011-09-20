@@ -18,14 +18,10 @@ class Control:
 		assert ret == 0
 
 	def destroy_all(self, blocking=True):
-		for guest in saved_guests:
-			self._execute_cmd('virsh destroy %s' % guest, blocking)
-			img_path = guests_image_map[guest]
-			backup_path = img_path + '.bak'
-			ret = os.system('rm %s' % img_path)
-			assert ret == 0
-			ret = os.system('mv %s %s' % (backup_path, img_path))
-			assert ret == 0
+		for guest in active_guests:
+			self.destroy(guest)
+		for guest in trace_guests:
+			self.destroy(guest)	
 
 	def restore(self, guest):
 		img_path = guests_image_map[guest]

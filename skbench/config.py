@@ -10,6 +10,7 @@ guests_saved_state_map = {
 	'parsec2': '/mnt/sdb/vm_saved/parsec2.saved',
 	'parsec3': '/mnt/sdb/vm_saved/parsec3.saved',
 	'parsec4': '/mnt/sdb/vm_saved/parsec4.saved',
+	'interactive': '/mnt/sdb/vm_saved/interactive.saved',
 }
 
 guests_image_map = {
@@ -17,9 +18,16 @@ guests_image_map = {
 	'parsec2': '/mnt/sdb/vm_images/parsec2.qcow2',
 	'parsec3': '/mnt/sdb/vm_images/parsec3.qcow2',
 	'parsec4': '/mnt/sdb/vm_images/parsec4.qcow2',
+	'interactive': '/mnt/sdb/vm_images/interactive.qcow2',
 }
 
 host_ip = '115.145.212.176'
+
+trace_replay = 1
+
+client_machine_ip = '115.145.212.176'
+
+client_machine_bitness = '64'
 
 ip_map = {
 	'parsec1': '115.145.212.177',
@@ -35,7 +43,8 @@ guest_bitness = {
 	'parsec4': '64',
 }
 
-saved_guests = ['parsec1', 'parsec2', 'parsec3', 'parsec4' ]
 active_guests = ['parsec1', 'parsec2', 'parsec3', 'parsec4']   # active guest's names who participate in the benchmark
+
+trace_guests = ['interactive']
 
 dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]

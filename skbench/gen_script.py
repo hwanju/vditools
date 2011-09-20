@@ -10,7 +10,9 @@ class Gen_script:
         # load config file and workload file
 		exec( open( workload_file ).read() )
 
-		num_of_guests = len(active_guests)
+		num_of_waits = len(active_guests)
+		if trace_replay == 1:
+			num_of_waits += 1
 	
 		self.job = {}
 
@@ -28,13 +30,16 @@ class Gen_script:
 			done
 		"""
 
+		if trace_replay == 1:
+			self.job[0] += "ssh %s ~/job > /tmp/log &" % client_machine_ip
+
 		self.job[0] += """
 			# wait for guests' initializing
 			wait_signal_64 %d 10000
 
 			virsh list
 			echo "[All guests are ready to execute]"
-		""" % num_of_guests
+		""" % num_of_waits
 
 		self.job[0] += "PRIVATE_ARG=%s          # for prolog and epilog\n" % private_arg
 
@@ -51,7 +56,11 @@ class Gen_script:
 			for GUEST_IP in $GUEST_IPS; do
 				send_signal_64 $GUEST_IP 10001
 			done
+		"""
+		if trace_replay == 1:
+			self.job[0] += "send_signal_64 %s 10001" % client_machine_ip
 
+		self.job[0] += """
 			echo -n "start_time="
 			date +%%s %s
 
@@ -66,7 +75,7 @@ class Gen_script:
 			echo "[Workloads end]"
 
 			# epilog 
-		""" % num_of_guests
+		""" % num_of_waits
 
 		f = open( 'scripts/' + epilog_script )
 		lines = f.readlines()
@@ -110,4 +119,22 @@ class Gen_script:
 	
             # Workload start
 
-			self.job[job_id] += 'send_signal_%s $IP_HOST 10002\n' % guest_bitness[guest_name]			
+			self.job[job_id] += 'send_signal_%s $IP_HOST 10002\n' % guest_bitness[guest_name]
+
+		if trace_replay == 1:
+			client_id = len(active_guests)
+			job_id = client_id + 1
+
+			f = open( 'scripts/' + workload_scripts[client_id] )
+			self.job[job_id] = f.read()
+			f.close()
+
+			self.job[job_id], nr_rep = re.subn( "WAIT_START_SIGNAL", "wait_signal_%s 1 10001 # WAIT_START_SIGNAL\n" % client_machine_bitness, self.job[job_id] )
+
+			self.job[job_id], nr_rep = re.subn( "SEND_READY_SIGNAL", "send_signal_%s $IP_HOST 10000 # SEND_BOOT_SIGNAL\n" % client_machine_bitness, self.job[job_id] )
+			if nr_rep < 1:
+				self.job[job_id] = 'send_signal_%s $IP_HOST 10000 # SEND_BOOT_SIGNAL\n' % client_machine_bitness + self.job[job_id]
+
+			self.job[job_id] += 'send_signal_%s $IP_HOST 10002\n' % client_machine_bitness
+
+			
