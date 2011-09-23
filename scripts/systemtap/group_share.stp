@@ -3,6 +3,7 @@
 global vcpu_list
 global log_enabled
 global log_start_time
+global share_histo
 
 probe begin {
         log_enabled = 0
@@ -26,6 +27,7 @@ probe __scheduler.ctxswitch.tp {
 
         //ratio = my_q_weight * 100 / tg_shares
         printf("%d %d %d %d %d %d\n", curr_time - log_start_time, vm_id, vcpu_id, curr_cpu, my_q_weight, tg_shares)
+        share_histo <<< my_q_weight
     }
 }
 
@@ -33,4 +35,9 @@ probe module("kvm").function("kvm_arch_vcpu_load") {
     tid = tid()
     if( !([tid] in vcpu_list) ) 
         vcpu_list[tid()] = $vcpu->vcpu_id
+}
+
+probe end {
+        print( @hist_log(share_histo) )
+        printf( "count=%d, avg=%d, min=%d, max=%d\n", @count(share_histo), @avg(share_histo), @min(share_histo), @max(share_histo) )
 }
