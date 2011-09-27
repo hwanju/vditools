@@ -7,7 +7,7 @@ from config import *
 
 def update(test, n, guest):
 	# copy distribution files
-	ret = os.system('scp -r ./dist %s:~/dist' % ip_map[guest])
+	ret = os.system('scp -r ./dist %s:~/' % ip_map[guest])
 	assert ret == 0
 
 	# generate workload
@@ -85,8 +85,8 @@ def start(test):
 		n = len(active_guests) + 1
 		update_client(test, n)
 	
-	for guest in trace_guests:
-		ctl.restore(guest)
+		for guest in trace_guests:
+			ctl.restore(guest)
 
 	f = file('/tmp/host_job', 'w')
 	f.write(augmented_job(test, 0))
