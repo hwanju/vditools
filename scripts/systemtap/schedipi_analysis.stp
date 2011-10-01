@@ -1,0 +1,196 @@
+#!/usr/bin/stap -v
+
+global debug_mode
+global vcpu_list
+global vm_list
+global ipi_histo
+global ipi_pending_timestamp
+global vcpu_block
+global ipi_sync_call
+
+probe begin {
+    debug_mode = 0
+    if( $# >= 1 ) {
+        debug_mode = 1
+    }
+}
+
+probe kernel.function("put_prev_task") {
+        prev_tid = tid()
+        prevtsk_state = $prev->state
+        if (debug_mode && [prev_tid] in vcpu_list && !vcpu_block[prev_tid] && prevtsk_state > 0) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d PP %d-%d (guest_mode=%d)\n", 
+                        curr_time, cpu(), pid(), prev_tid, $prev->flags & 0x00000010)   //0x00000010 = PF_VCPU
+                printf( "Thread is blocked, but vcpu is not blocked! Why?\n" )
+                if ($prev->pi_blocked_on && $prev->pi_blocked_on->lock) { 
+                        owner = $prev->pi_blocked_on->lock->owner & ~(1);
+                        printf( "\t\t==> rtmutex owner=%x (lock=%x, task=%d)\n", owner, $prev->pi_blocked_on->lock, $prev->pi_blocked_on->task->pid )
+                }
+                print_backtrace();
+        }
+        //if (debug_mode) {
+        //        printf( "%d %d PI %d-%d pi_empty=%d", 
+        //                curr_time, cpu(), pid(), prev_tid, $prev->pi_state_list->next ==  &$prev->pi_state_list )
+        //        if ($prev->pi_state_cache) {
+        //                printf (" pi_state_cache=%d", $prev->pi_state_cache)
+        //                if($prev->pi_state_cache->owner) 
+        //                        printf (" owner_pid=%d", $prev->pi_state_cache->owner->pid) 
+        //        }
+        //        print ("\n")
+        //}
+        vcpu_block[prev_tid] = 0
+}
+probe kernel.trace("sched_pi_setprio") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d PIPR pid=%d %d->%d\n", curr_time, cpu(), $tsk->pid, $tsk->prio, $newprio )
+        }
+}
+
+probe __scheduler.ctxswitch.tp {
+    curr_time = gettimeofday_us()
+    curr_cpu = cpu()
+    if( [prev_pid] in vm_list || [next_pid] in vm_list ) {
+            if (debug_mode) {
+                printf( "%d %d D \"%s\" %d-%d (%d) <%x> -> \"%s\" %d-%d (%d) <%x>\n", 
+                    curr_time, curr_cpu, 
+                    prev_task_name, prev_pid, prev_tid, prevtsk_state, $prev,
+                    next_task_name, next_pid, next_tid, nexttsk_state, $next
+                )
+            }
+    }
+    if( [prev_tid] in vcpu_list ) {
+        vm_id = prev_pid
+        vcpu_id = vcpu_list[prev_tid]
+        ipi_pending_timestamp[vm_id, vcpu_id] = 0
+    }
+    if( [next_tid] in vcpu_list ) {
+            vm_id = next_pid
+            vcpu_id = vcpu_list[next_tid]
+            if( ipi_pending_timestamp[vm_id, vcpu_id] ) {
+                    ipi_latency = curr_time - ipi_pending_timestamp[vm_id, vcpu_id]
+                    ipi_histo <<< ipi_latency
+                    if (debug_mode && ipi_latency > 8000) {
+                            printf( "\tipi_latency=%d\n", ipi_latency )
+                    }
+                    ipi_pending_timestamp[vm_id, vcpu_id] = 0
+            }
+    }
+}
+probe kernel.trace("kvm_apic_ipi") {
+        curr_time = gettimeofday_us()
+
+        if (debug_mode) { 
+                printf( "%d %d I %d-%d %d icr_low=%x, vec=%x\n", curr_time, cpu(), pid(), tid(), $dest_id, $icr_low, $icr_low & 0xFF)
+        }
+}
+probe kernel.trace("kvm_apic_accept_irq") {
+        curr_time = gettimeofday_us()
+
+        if (debug_mode) {
+                printf( "%d %d A %d-%d %d dm=%x tm=%x vec=%x coalesced=%d\n", 
+                        curr_time, cpu(), pid(), tid(), $apicid, $dm, $tm, $vec, $coalesced)
+        }
+}
+probe module("kvm").function("__vcpu_run") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d RUN %d-%d\n", curr_time, cpu(), pid(), tid())
+        }
+}
+probe module("kvm").function("vcpu_enter_guest") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d VEG %d-%d\n", curr_time, cpu(), pid(), tid())
+        }
+}
+probe kernel.trace("kvm_entry") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d ENT %d-%d v%d\n", curr_time, cpu(), pid(), tid(), $vcpu_id)
+        }
+}
+probe kernel.trace("kvm_exit") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d EXIT %d-%d er=%x\n", curr_time, cpu(), pid(), tid(), $exit_reason)
+        }
+}
+probe module("kvm").function("kvm_vcpu_block") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                vcpu_block[tid()] = 1
+                printf( "%d %d BLK %d-%d v%d\n", curr_time, cpu(), pid(), tid(), $vcpu->vcpu_id)
+        }
+}
+probe module("kvm").function("kvm_vcpu_kick") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d KICK %d-%d v%d empty=%d\n", curr_time, cpu(), pid(), tid(), $vcpu->vcpu_id, $vcpu->wq->task_list->next == &$vcpu->wq->task_list)
+        }
+}
+probe kernel.function("__list_add_ipi_pending") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d ip %d-%d pid=%d on_rq=%d\n", curr_time, cpu(), pid(), tid(), $p->pid, $p->se->on_rq)
+                if (!ipi_sync_call[$p->pid]) {
+                        print( "Who wakes me up?" )
+                        print_backtrace()
+                }
+                if ($p->pi_blocked_on && $p->pi_blocked_on->lock) { 
+                        owner = $p->pi_blocked_on->lock->owner & ~(1);
+                        printf( "\t\t==> rtmutex owner=%x (lock=%x, task=%d)\n", owner, $p->pi_blocked_on->lock, $p->pi_blocked_on->task->pid )
+                }
+                ipi_sync_call[$p->pid] = 0;
+        }
+}
+probe kernel.trace("sched_ipi_futex") {
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d FTX %d-%d source=%d (%d) -> target=%d (%d)\n", 
+                        curr_time, cpu(), pid(), tid(), 
+                        $source_task->pid, $source_task->se->ipi_pending, 
+                        $target_task->pid, $target_task->se->ipi_pending )
+        }
+}
+probe kernel.function("list_add_ipi_pending") {
+        vm_id = pid()
+        curr_time = gettimeofday_us()
+        if ([$p->pid] in vcpu_list && !ipi_pending_timestamp[vm_id, vcpu_list[$p->pid]])
+                ipi_pending_timestamp[vm_id, vcpu_list[$p->pid]] = curr_time
+        if (debug_mode) {
+                curr_time = gettimeofday_us()
+                ipi_sync_call[$p->pid] = 1;
+                printf( "%d %d IP %d-%d pid=%d\n", curr_time, cpu(), pid(), tid(), $p->pid )
+        }
+}
+probe kernel.function("resched_task") {
+        if (debug_mode && cpu() == 0) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d RT %d-%d pid=%d\n", curr_time, cpu(), pid(), tid(), $p->pid)
+        }
+}
+probe kernel.function("pick_next_entity") {
+        if (debug_mode && cpu() == 0) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d PN %d-%d\n", curr_time, cpu(), pid(), tid())
+        }
+}
+probe module("kvm").function("kvm_resched") {
+        if (debug_mode && cpu() == 0) {
+                curr_time = gettimeofday_us()
+                printf( "%d %d RK %d-%d vcpu_id=%d\n", curr_time, cpu(), pid(), tid(), $vcpu->vcpu_id)
+        }
+}
+
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vcpu_list[tid()] = $vcpu->vcpu_id
+    vm_list[pid()] = 1
+    //ipi_pending_timestamp[pid(), $vcpu->vcpu_id] = 0
+}
+
+probe end {
+    print( @hist_log(ipi_histo) )
+    printf( "count=%d, avg=%d, min=%d, max=%d\n", @count(ipi_histo), @avg(ipi_histo), @min(ipi_histo), @max(ipi_histo) )
+}

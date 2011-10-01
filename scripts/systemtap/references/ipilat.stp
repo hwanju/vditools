@@ -43,13 +43,14 @@ probe kernel.trace("kvm_apic_ipi") {
         for( dest_vcpu_id=0 ; dest_vcpu_id < max_cpu ; dest_vcpu_id++ ) {
             if( $dest_id & (1 << dest_vcpu_id) ) {
                 ipi_pending_timestamp[vm_id, dest_vcpu_id] = gettimeofday_us()
+                //printf( "I %d dest_id=%d, icr_low=%x, vector=%x\n", dest_vcpu_id, $dest_id, $icr_low, $icr_low & 0xFF)
             }
         }
     }
     //if( ($icr_low & 0xff) > 0xe0 && ($icr_low & 0xff) <= 0xee ) {
     //    printf( "I dest_id=%d, icr_low=%x, vector=%x\n", $dest_id, $icr_low, $icr_low & 0xFF)
     //}
-    //printf( "I dest_id=%d, icr_low=%x, vector=%x\n", $dest_id, $icr_low, $icr_low & 0xFF)
+    printf( "I dest_id=%x, icr_low=%x, vector=%x\n", $dest_id, $icr_low, $icr_low & 0xFF)
 }
 
 probe module("kvm").function("kvm_arch_vcpu_load") {

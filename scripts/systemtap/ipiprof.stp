@@ -1,0 +1,53 @@
+#!/usr/bin/stap -v
+
+global vcpu_list
+global dst_ipi
+global vcpu_dest_id
+global vcpu_shorthand
+global monitor_enabled
+global monitor_start_time
+global monitor_end_time
+
+probe kernel.trace("kvm_ui") {
+        if ($event_type == 1) {         # only works with Enter key
+                if (!monitor_enabled) {
+                        monitor_enabled = 1
+                        monitor_start_time = gettimeofday_us()
+                }
+                else {
+                        monitor_enabled = 0
+                        monitor_end_time = gettimeofday_us()
+                        printf("%d\n", monitor_end_time - monitor_start_time)
+                        foreach ([src_vcpu_id, dst_vcpu_id] in dst_ipi-)
+                                printf("%d\t%d\t%d\n", src_vcpu_id, dst_vcpu_id, dst_ipi[src_vcpu_id, dst_vcpu_id])
+                        delete dst_ipi
+                }
+        }
+}
+
+probe kernel.function("list_add_ipi_pending") {
+        src_tid = tid()
+        dst_tid = $p->pid
+        if (monitor_enabled && [src_tid] in vcpu_list && [dst_tid] in vcpu_list) {
+                src_vcpu_id = vcpu_list[src_tid]
+                dst_vcpu_id = vcpu_list[dst_tid]
+
+                if (vcpu_shorthand[src_tid] == 0 && vcpu_dest_id[src_vcpu_id] != 254 && vcpu_dest_id[src_vcpu_id] != src_vcpu_id)
+                        dst_ipi[src_vcpu_id, dst_vcpu_id]++
+        }
+}
+
+probe kernel.trace("kvm_apic_ipi") {
+        sh = $icr_low >> 18 & 0x3
+        src_tid = tid()
+        if ([src_tid] in vcpu_list) {
+                src_vcpu_id = vcpu_list[src_tid]
+                vcpu_shorthand[src_tid] = sh
+                vcpu_dest_id[src_vcpu_id] = $dest_id
+        }
+}
+
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vcpu_list[tid()] = $vcpu->vcpu_id
+}
+

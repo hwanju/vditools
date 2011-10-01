@@ -1,10 +1,10 @@
 #!/bin/sh
 ### FIXME: NOT general!
 if [ $# -eq 0 ]; then
-        echo "Usage: $0 <1=on|0=off> [cpu cgroup root dir(=/root/work/cpuctl)]"
+        echo "Usage: $0 <balsched mode=(1,2,3,4)|0=off> [cpu cgroup root dir(=/root/work/cpuctl)]"
         exit
 fi
-on=$1
+mode=$1
 cpudir=/root/work/cpuctl
 if [ $# -ge 2 ]; then
         cpudir=$2
@@ -14,14 +14,12 @@ if [ ! -e $cpudir ]; then
         exit
 fi
 
-if [ $on -eq 1 ]; then
-        vcpu_mode=2
-        task_mode=1
-elif [ $on -eq 0 ]; then
+if [ $mode -eq 0 ]; then
         vcpu_mode=0
         task_mode=0
 else
-        echo "1=on, 0=off"
+        vcpu_mode=$(( $mode + 1 ))
+        task_mode=$mode
 fi
 
 echo $vcpu_mode > $cpudir/vm/cpu.balsched

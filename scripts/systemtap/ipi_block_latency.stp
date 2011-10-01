@@ -1,0 +1,73 @@
+#!/usr/bin/stap -v
+
+global vcpu_list
+global ipi_block_latency
+global ipi_pending_timestamp
+global ipi_pending_vector
+global ipi_vector
+global ipi_vector_short
+global ipi_vector_long
+
+probe __scheduler.ctxswitch.tp {
+    if( [prev_tid] in vcpu_list ) {
+            vm_id = prev_pid
+            vcpu_id = vcpu_list[prev_tid]
+            ipi_pending_timestamp[vm_id, vcpu_id] = 0
+    }
+    if( [next_tid] in vcpu_list ) {
+            vm_id = next_pid
+            vcpu_id = vcpu_list[next_tid]
+            ipi_pending_timestamp[vm_id, vcpu_id] = 0
+    }
+}
+
+probe module("kvm").function("kvm_vcpu_block") {
+        vm_id = pid()
+        curr_time = gettimeofday_us()
+        if (ipi_pending_timestamp[vm_id, $vcpu->vcpu_id]) {
+                latency = curr_time - ipi_pending_timestamp[vm_id, $vcpu->vcpu_id];
+                ipi_block_latency <<< latency;
+                if (latency < 100) {
+                        ipi_vector_short[ipi_pending_vector[vm_id, $vcpu->vcpu_id]]++
+                }
+                if (latency > 10000) {
+                        ipi_vector_long[ipi_pending_vector[vm_id, $vcpu->vcpu_id]]++
+                }
+        }
+}
+
+probe kernel.trace("kvm_apic_accept_irq") {
+        ipi_pending_vector[pid(), $apicid] = $vec
+}
+
+probe kernel.function("list_add_ipi_pending") {
+        vm_id = pid()
+        curr_time = gettimeofday_us()
+        if ([$p->pid] in vcpu_list) {
+                if (!ipi_pending_timestamp[vm_id, vcpu_list[$p->pid]])
+                        ipi_pending_timestamp[vm_id, vcpu_list[$p->pid]] = curr_time
+                ipi_vector[ipi_pending_vector[pid(), vcpu_list[$p->pid]]]++
+        }
+}
+
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vcpu_list[tid()] = $vcpu->vcpu_id
+}
+
+probe end {
+    print( @hist_log(ipi_block_latency) )
+    printf( "count=%d, avg=%d, min=%d, max=%d\n", @count(ipi_block_latency), @avg(ipi_block_latency), @min(ipi_block_latency), @max(ipi_block_latency) )
+
+    printf( "ipi vector stat\n" )
+    foreach (vec in ipi_vector-) {
+            printf( "%x: %d\n", vec, ipi_vector[vec] )
+    }
+    printf( "short latency\n" )
+    foreach (vec in ipi_vector_short-) {
+            printf( "%x: %d\n", vec, ipi_vector_short[vec] )
+    }
+    printf( "long latency\n" )
+    foreach (vec in ipi_vector_long-) {
+            printf( "%x: %d\n", vec, ipi_vector_long[vec] )
+    }
+}
