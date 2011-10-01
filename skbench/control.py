@@ -20,8 +20,9 @@ class Control:
 	def destroy_all(self, blocking=True):
 		for guest in active_guests:
 			self.destroy(guest)
-		for guest in trace_guests:
-			self.destroy(guest)	
+		if trace_replay == 1:	
+			for guest in trace_guests:
+				self.destroy(guest)	
 
 	def restore(self, guest):
 		img_path = guests_image_map[guest]
