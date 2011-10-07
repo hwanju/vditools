@@ -1,0 +1,8 @@
+prolog_script = 'parsec/cfs_prolog'
+epilog_script = 'parsec/cfs_epilog'
+workload_scripts = (
+	'parsec/blackscholes',
+	'parsec/blackscholes',
+	'parsec/blackscholes',
+	'parsec/blackscholes',
+)

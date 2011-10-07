@@ -1,0 +1,9 @@
+prolog_script = 'bodytrack+interactive_cfs_prolog'
+epilog_script = 'bodytrack+interactive_cfs_epilog'
+workload_scripts = (
+	'parsec_bodytrack',
+	'parsec_bodytrack',
+	'parsec_bodytrack',
+	'parsec_bodytrack',
+	'ppt_open_10x',
+)

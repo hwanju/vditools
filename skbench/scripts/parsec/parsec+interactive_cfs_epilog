@@ -1,0 +1,30 @@
+
+i=0
+for path in ${CPU_GROUP_PATH[@]}
+do
+#	for pid in ${PER_VM_TASKS[i]}
+#	do
+#		/bin/echo $pid > $CPU_ROOT_PATH/tasks
+#	done
+	/bin/echo ${TGIDS[i]} > $CPU_ROOT_PATH/cgroup.procs
+
+	while [ true ]
+	do
+		pids=$(cat $path/tasks)
+		if [ ${#pids} -eq 0 ]
+		then 
+			break
+		fi
+		sleep 3
+	done
+
+	rmdir $path
+	
+	let i=i+1
+done
+
+pids=$(ps -eLf | grep monitor_load | awk '{print $4}')
+for pid in $pids
+do
+	kill $pid
+done

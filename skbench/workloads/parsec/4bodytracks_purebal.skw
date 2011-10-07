@@ -1,0 +1,8 @@
+prolog_script = 'parsec/purebal_prolog'
+epilog_script = 'parsec/purebal_epilog'
+workload_scripts = (
+	'parsec/bodytrack',
+	'parsec/bodytrack',
+	'parsec/bodytrack',
+	'parsec/bodytrack',
+)

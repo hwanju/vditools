@@ -1,0 +1,25 @@
+export DISPLAY=:0
+PORT_MAP="9000"
+SETUP_MAP=("/root/traces/ppt_open_10iter_setup.trace")
+TRACE_MAP=("/root/traces/ppt_open_10iter.trace")
+
+i=0
+for setup_trace in ${SETUP_MAP[@]}
+do
+	spicec -h $IP_HOST -p $PORT_MAP -P $setup_trace > /dev/null &
+	let i=i+1
+done
+
+wait_signal_64 $i 30000
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+i=0
+for trace in ${TRACE_MAP[@]}
+do
+	spicec -h $IP_HOST -p $PORT_MAP -P $trace > /dev/null &
+	let i=i+1
+done
+
+wait_signal_64 $i 30001
