@@ -7,8 +7,14 @@ global ipi_histo
 global ipi_pending_timestamp
 global vcpu_block
 global ipi_sync_call
+global shorthand_name
 
 probe begin {
+        shorthand_name[0] = "dst";
+        shorthand_name[1] = "self";
+        shorthand_name[2] = "all";
+        shorthand_name[3] = "all-but-self";
+
     debug_mode = 0
     if( $# >= 1 ) {
         debug_mode = 1
@@ -82,7 +88,8 @@ probe kernel.trace("kvm_apic_ipi") {
         curr_time = gettimeofday_us()
 
         if (debug_mode) { 
-                printf( "%d %d I %d-%d %d icr_low=%x, vec=%x\n", curr_time, cpu(), pid(), tid(), $dest_id, $icr_low, $icr_low & 0xFF)
+                printf( "%d %d I %d-%d %d icr_low=%x sh=%s, vec=%x\n", 
+                        curr_time, cpu(), pid(), tid(), $dest_id, $icr_low, shorthand_name[$icr_low >> 18 & 0x3],$icr_low & 0xFF)
         }
 }
 probe kernel.trace("kvm_apic_accept_irq") {

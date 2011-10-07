@@ -55,8 +55,8 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
                 if [ $c != 4 ]; then
                         plot_str="$plot_str, ''"
                 fi
-                solid_id=${gtid_to_id[0x$gtid]}
-                plot_str="$plot_str u (\$$c / \$2):xtic(every10th(0)) t '$gtid' fs solid $solid_id"
+                color_id=${gtid_to_id[0x$gtid]}
+                plot_str="$plot_str u (\$$c / \$2):xtic(every10th(0)) t '$gtid' lc $color_id"
         done
         plot_str="$plot_str, '' u 1:$nr_cols t 'Wait time ratio' lt 1 lw 2 axis x1y2 w lp"
         origin=`bc << EOF
