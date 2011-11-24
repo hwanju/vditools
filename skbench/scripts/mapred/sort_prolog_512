@@ -1,0 +1,14 @@
+MEM=512
+VMS="ubuntu1 ubuntu2 ubuntu3 ubuntu4"
+
+let MEM_KB=$MEM*1024
+
+for vm in $VMS
+do
+	virsh setmem $vm $MEM_KB
+done
+
+pidstat -C kvm 5 > /tmp/cpu_usage &
+
+temp=($(ps | grep pidstat | awk '{print $1}'))
+stat_pid=${temp[0]}

@@ -1,0 +1,11 @@
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+swap_activity.sh &
+sleep 1
+temp=($(ps | grep swap_ | awk '{print $1}'))
+swap_pid=${temp[0]}
+
+wait_signal_32 1 30000
+kill $swap_pid
+cat /tmp/swaps | TO_HOST

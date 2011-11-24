@@ -1,0 +1,8 @@
+prolog_script = 'mapred/sort_prolog_896'
+epilog_script = 'mapred/sort_epilog'
+workload_scripts = (
+	'mapred/sort_master',
+	'mapred/sort_slave',
+	'mapred/sort_slave',
+	'mapred/sort_slave',
+)

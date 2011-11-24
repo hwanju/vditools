@@ -1,0 +1,25 @@
+HADOOP_PATH=/usr/local/hadoop
+
+SEND_READY_SIGNAL
+
+WAIT_START_SIGNAL
+
+swap_activity.sh &
+
+temp=($(ps | grep swap_ | awk '{print $1}'))
+
+swap_pid=${temp[0]}
+
+date > /tmp/result
+/usr/bin/time -v $HADOOP_PATH/bin/hadoop jar $HADOOP_PATH/hadoop-examples-0.20.205.0.jar sort random-data sorted-data 1>> /tmp/result 2>> /tmp/result
+date >> /tmp/result
+
+
+send_signal_32 115.145.212.178 30000
+send_signal_32 115.145.212.179 30000
+send_signal_32 115.145.212.180 30000
+
+kill $swap_pid
+cat /tmp/swaps >> /tmp/result
+cat /tmp/result | TO_HOST
+
