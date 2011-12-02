@@ -1,0 +1,21 @@
+#!/usr/bin/stap -v
+
+global log_enabled
+
+probe kernel.trace("kvm_ui") {
+        printf("%d %s %d %d %d\n", gettimeofday_us(), "UI", $kvm->vm_id, $event_type, $event_info)
+}
+probe kernel.trace("kvm_load_check") {
+        log_enabled[$vm_id] = $op;
+        printf("%s %d %d %d %d\n", "LC", $op, $vm_id, $start_load_time, $end_load_time)
+}
+probe kernel.trace("kvm_vcpu_switch") {
+        if (log_enabled[pid()]) {
+                printf( "%d %s %d %d %d %d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $state);
+        }
+}
+probe kernel.trace("kvm_gthread_switch") {
+        if (log_enabled[pid()]) {
+                printf( "%d %s %d %d %d %05x %d\n", gettimeofday_us(), $op ? "GA" : "GD", pid(), $vcpu_id, cpu(), $guest_task_id, $flags);
+        }
+}

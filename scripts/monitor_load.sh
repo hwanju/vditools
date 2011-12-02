@@ -6,7 +6,8 @@ if [ $# -eq 1 -a "$1" == "-c" ]; then
         clean=1
 fi
 
-systemtap/vdi_load.stp > load_sample.dump
+systemtap/vdi_load.stp > /dev/shm/load_sample.dump
+mv /dev/shm/load_sample.dump .
 ./load_profile.py load_sample.dump
 recent_output=`ls -t | head -1`
 vm_id=`echo $recent_output | perl -e '$f = <>; print "$1\n" if $f =~ /vm(\d+)/;'`
