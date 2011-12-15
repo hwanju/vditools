@@ -54,8 +54,8 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
                 continue
         fi
 
-        xmax=`wc -l $dat_fn | awk '{print $1}'` # (# of epoch + 2)
-        xmax=$(( $xmax + $xmax * 2 / 5 ))
+        end_epoch=`wc -l $dat_fn | awk '{print $1}'` # (# of epoch + 2)
+        xmax=$(( $end_epoch + $end_epoch * 2 / 5 ))
 
         nr_cols=`tail -1 $dat_fn | awk '{print NF}'`
         label=`head -1 $dat_fn`
@@ -71,7 +71,11 @@ for vcpu_id in `seq 0 $(( $max_vcpu - 1 ))`; do
                         plot_str="$plot_str, ''"
                 fi
                 gtid=`echo $gtid_with_tag | sed 's/\/.*$//g'`
-                color_opt="ls 1 lt rgb \"#$gtid\""
+                if [ "$gtid" = "00187" ]; then  # System task of Windows
+                        color_opt="ls 1 fs pattern 2"
+                else
+                        color_opt="ls 1 lt rgb \"#$gtid\""
+                fi
                 plot_str="$plot_str u (\$$c / \$3):xtic(every10th(0)) t '$gtid_with_tag' $color_opt"
         done
         plot_str="$plot_str, '' u 2:$(( $nr_cols - $rundelay_idx_from_end )) t 'Wait time ratio' lt 1 lw 3 axis x1y2 w lp"
@@ -95,6 +99,8 @@ EOF
         echo "set size $size_x,$h" >> $plt_str2_fn
         echo $plot_str2 >> $plt_str2_fn
 done
+
+echo "vm$vm_id-id$profile_id: event=$event_type end_epoch=$end_epoch"
 
 plot_str=`cat $plt_str_fn`
 plot_str2=`cat $plt_str2_fn`

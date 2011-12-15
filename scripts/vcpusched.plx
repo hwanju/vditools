@@ -2,11 +2,11 @@
 
 system( "rm -f sched-vm*.dat" );
 $shift_y = 0.12;
+my $line;
 while(<>) {
+        $line++;
         if (/(\d+) GA (\d+) (\d+) (\d+) [0-9a-f]{5} (\d+)/) {
-                #$profile_id{$2} = 0 unless defined($profile_id{$2});
                 $id = $profile_id{$2};
-                #$start_time_ms{$2} = $1/1000 if !defined($start_time_ms{$2}) || !$start_time_ms{$2};
                 $time_ms = $1/1000;
                 $time_offset_ms = int($time_ms - $start_time_ms{$2});
 
@@ -19,9 +19,28 @@ while(<>) {
 
                 $max_vcpu_id{$2} = $3 if !defined($max_vcpu_id{$2}) || $3 > $max_vcpu_id{$2};
                 $max_time_offset{$2}{$id} = $time_offset_ms if !defined($max_time_offset{$2}{$id}) || $time_offset_ms > $max_time_offset{$2}{$id};
+
+                if (defined($vcpu_flags{$2}{$3})) {
+                        # bg->fg
+                        if ($vcpu_flags{$2}{$3} == 2 && $5 != 2 && defined($bg_vcpu_onrq{$2}{$3}) && $bg_vcpu_onrq{$2}{$3}) {
+                                if (defined($nr_bg_vcpus{$2}{$4}) && $nr_bg_vcpus{$2}{$4} > 0) {
+                                        $bg_vcpu_onrq{$2}{$3} = 0;
+                                        $nr_bg_vcpus{$2}{$4}--; 
+                                }
+                                #else {
+                                #        print "$line: BUG! d$2-v$3p$4: $5 ($nr_bg_vcpus{$2}{$4})\n" if ($nr_bg_vcpus{$2}{$4} < 0);
+                                #}
+                        }
+                        # fg->bg
+                        elsif ($vcpu_flags{$2}{$3} != 2 && $5 == 2) {
+                                $bg_vcpu_onrq{$2}{$3} = 1;
+                                $nr_bg_vcpus{$2}{$4}++; 
+                        }
+                }
+                $vcpu_flags{$2}{$3} = $5;
         }
         elsif (/(\d+) GD (\d+) (\d+) (\d+) [0-9a-f]{5} (\d+)/) {
-                #$start_time_ms{$2} = $1/1000 if !defined($start_time_ms{$2}) || !$start_time_ms{$2};
+                $id = $profile_id{$2};
                 $time_ms = $1/1000;
                 $time_offset_ms = int($time_ms - $start_time_ms{$2});
                 $last_sched_time_ms = $last_time_offset_ms{$2}{$3}; 
@@ -36,11 +55,22 @@ while(<>) {
                         close FD;
                 }
         }
-        elsif (/(\d+) VD (\d+) (\d+) \d+ 1/) {          # waiting on rq
-                $time_ms = $1/1000;
-                $last_depart_offset_ms{$2}{$3} = int($time_ms - $start_time_ms{$2});
+        elsif (/(\d+) VD (\d+) (\d+) (\d+) (\d+)/) {
+                if ($5 == 1) {          # waiting on rq
+                        $time_ms = $1/1000;
+                        $last_depart_offset_ms{$2}{$3} = int($time_ms - $start_time_ms{$2});
+                }
+                elsif ($5 == 0) {       # blocked: out of rq
+                        if (defined($bg_vcpu_onrq{$2}{$3}) && $bg_vcpu_onrq{$2}{$3} == 1) {
+                                $bg_vcpu_onrq{$2}{$3} = 0;
+                                $nr_bg_vcpus{$2}{$4}--;
+                                #print "$line: deq v$3 on p$4 #=$nr_bg_vcpus{$2}{$4}\n";
+                        }
+                }
+                $vcpu_state{$2}{$3} = $5;
         }
         elsif (/(\d+) VA (\d+) (\d+) (\d+)/) {
+                $id = $profile_id{$2};
                 $time_ms = $1/1000;
                 $time_offset_ms = int($time_ms - $start_time_ms{$2});
                 $last_depart_time_ms = $last_depart_offset_ms{$2}{$3};
@@ -56,6 +86,18 @@ while(<>) {
                 }
                 $last_depart_offset_ms{$2}{$3} = 0;
 
+                # enter rq
+                if (defined($vcpu_flags{$2}{$3}) && defined($vcpu_state{$2}{$3}) && $vcpu_state{$2}{$3} == 0) {
+                        if ($vcpu_flags{$2}{$3} == 2) {
+                                $bg_vcpu_onrq{$2}{$3} = 1;
+                                $nr_bg_vcpus{$2}{$4}++; 
+                                #print "$line: enq v$3 on p$4 #=$nr_bg_vcpus{$2}{$4}\n";
+                        }
+                        elsif(defined($nr_bg_vcpus{$2}{$4}) && $nr_bg_vcpus{$2}{$4} > 0) {
+                                $nr_sched_with_bg{$id}++;
+                                #print "$line: \tsched with bg v$3 on p$4 #=$nr_bg_vcpus{$2}{$4}\n";
+                        }
+                }
         }
         elsif (/(\d+) UI (\d+) (\d+) (\d+)/) {
                 if (($3 == 0 && $4 == 28) || $3 == 3) {
@@ -63,6 +105,21 @@ while(<>) {
                         $start_time_ms{$2} = $1 / 1000;
                 }
         }
+        elsif (/(\d+) WT (\d+) (\d+) (\d+) (\d+)/) {
+                $id = $profile_id{$2};
+                if (defined($id)) {
+                        $time_ms = $1/1000;
+                        $time_offset_ms = int($time_ms - $start_time_ms{$2});
+                        $fn = "sched-vm$2-pcpu$3-id$id-share.dat";
+                        open FD, ">>$fn";
+                        printf FD "%d %d %d\n", $time_offset_ms, $4, $5;
+                        close FD;
+                }
+        }
+}
+
+foreach $id (sort {$a <=> $b} keys %nr_sched_with_bg) {
+        print "nr_sched_with_bg: id=$id -> $nr_sched_with_bg{$id}\n";
 }
 
 $pltstr = '
@@ -116,5 +173,5 @@ open FD, ">.plt.tmp";
 print FD $pltstr;
 close FD;
 system("gnuplot .plt.tmp 2> /dev/null");
-system("rm -f sched-vm*.dat .plt.tmp");
+#system("rm -f sched-vm*.dat .plt.tmp");
 system("rm -f .plt.tmp");

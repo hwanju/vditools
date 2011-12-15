@@ -1,10 +1,14 @@
 #!/usr/bin/stap -v
-probe kernel.trace("kvm_vlp_avg") {
-        printf("%s %d %d %d\n", "VP", $vm_id, $vlp_avg, $vlp_period)
-}
+global cpu_time
+global sched_time
+global vm_list
 
 probe kernel.trace("kvm_load_check") {
         printf("%s %d %d %d %d %d %d\n", "LC", $op, $vm_id, $nr_load_entries, $load_period_msec, $start_load_time, $end_load_time)
+        foreach ([pid, tid+] in cpu_time) {
+                if (pid == $vm_id)
+                        printf("NVL %d %d %d\n", $vm_id, tid, cpu_time[pid, tid])
+        }
 }
 
 probe kernel.trace("kvm_vcpu_stat") {
@@ -28,4 +32,18 @@ probe kernel.trace("kvm_gtask_stat") {
 }
 probe kernel.trace("kvm_ui") {
         printf("%s %d %d %d\n", "UI", $kvm->vm_id, $event_type, $event_info)
+}
+probe __scheduler.ctxswitch.tp {
+        if ($prev->se->is_vcpu)
+                vm_list[prev_pid] = 1
+        if ($next->se->is_vcpu) 
+                vm_list[next_pid] = 1
+
+        // for cpu load of non-vcpus in a vm
+        if (prev_pid in vm_list && !$prev->se->is_vcpu && prev_tid in sched_time) {
+                cpu_time[prev_pid, prev_tid] += gettimeofday_us() - sched_time[prev_tid]
+        }
+        if (next_pid in vm_list && !$next->se->is_vcpu) {
+                sched_time[next_tid] = gettimeofday_us()
+        }
 }

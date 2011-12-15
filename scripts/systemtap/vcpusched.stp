@@ -1,6 +1,17 @@
 #!/usr/bin/stap -v
 
 global log_enabled
+global tid_to_vcpu_id
+global shorthand_name
+global vm_list
+
+probe begin {
+        shorthand_name[0] = "dst";
+        shorthand_name[1] = "self";
+        shorthand_name[2] = "all";
+        shorthand_name[3] = "all-but-self";
+}
+
 
 probe kernel.trace("kvm_ui") {
         printf("%d %s %d %d %d\n", gettimeofday_us(), "UI", $kvm->vm_id, $event_type, $event_info)
@@ -11,11 +22,65 @@ probe kernel.trace("kvm_load_check") {
 }
 probe kernel.trace("kvm_vcpu_switch") {
         if (log_enabled[pid()]) {
-                printf( "%d %s %d %d %d %d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $state);
+                printf( "%d %s %d %d %d %d %d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $state, $flags);
+                if ($op == 0) 
+                        tid_to_vcpu_id[tid()] = $vcpu_id
         }
 }
 probe kernel.trace("kvm_gthread_switch") {
         if (log_enabled[pid()]) {
                 printf( "%d %s %d %d %d %05x %d\n", gettimeofday_us(), $op ? "GA" : "GD", pid(), $vcpu_id, cpu(), $guest_task_id, $flags);
+        }
+}
+probe kernel.trace("sched_group_weight") {
+        //if (log_enabled[$tgid]) {
+                printf( "%d WT %d %d %d %d %d %d %d\n", gettimeofday_us(), $tgid, $pid in tid_to_vcpu_id ? tid_to_vcpu_id[$pid] : $pid
+                , cpu(), $weight, $group_weight, $vruntime, $group_vruntime)
+        //}
+}
+probe kernel.trace("kvm_bg_vcpu") {
+        if (log_enabled[pid()]) {
+                printf( "%d BG %d %d %d %d %d\n", gettimeofday_us(), pid(), $vcpu->vcpu_id, $vcpu->bg_exec_time, $vcpu->exec_time, $bg_vcpu_nice)
+        }
+}
+probe __scheduler.ctxswitch.tp {
+        if ($prev->se->is_vcpu)
+                vm_list[prev_pid] = 1
+        if ($next->se->is_vcpu) 
+                vm_list[next_pid] = 1
+
+        // for cpu load of non-vcpus in a vm
+        if (log_enabled[prev_pid] && prev_pid in vm_list && !$prev->se->is_vcpu) {
+                printf( "%d ND %d %d %d %d\n", gettimeofday_us(), prev_pid, prev_tid, cpu(), prevtsk_state)
+        }
+        if (log_enabled[next_pid] && next_pid in vm_list && !$next->se->is_vcpu) {
+                printf( "%d NA %d %d %d %d\n", gettimeofday_us(), next_pid, next_tid, cpu(), nexttsk_state)
+        }
+}
+
+# extra info related to ipi and tlb flush
+probe kernel.trace("kvm_apic_ipi") {
+        if (log_enabled[pid()] && tid() in tid_to_vcpu_id) {
+                printf( "%d IPI %d %d %d icr_low=%x sh=%s vec=%x\n", 
+                        gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], $dest_id, $icr_low, shorthand_name[$icr_low >> 18 & 0x3],$icr_low & 0xFF)
+        }
+}
+probe kernel.function("list_add_ipi_pending") {
+        if (log_enabled[$p->tgid] && tid() in tid_to_vcpu_id && $p->pid in tid_to_vcpu_id)
+                printf( "%d IP %d %d %d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[tid()], tid_to_vcpu_id[$p->pid] )
+}
+probe kernel.function("__list_add_ipi_pending") {
+        if (log_enabled[$p->tgid] && tid() in tid_to_vcpu_id && $p->pid in tid_to_vcpu_id && $p->se->on_rq)
+                printf( "%d QI %d %d %d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[tid()], tid_to_vcpu_id[$p->pid] )
+}
+probe kernel.trace("kvm_exit") {
+        if (log_enabled[pid()]) {
+                printf( "%d EX%d %d %d\n", gettimeofday_us(), $exit_reason, pid(), tid_to_vcpu_id[tid()] )
+        }
+}
+
+probe module("kvm").function("kvm_vcpu_on_spin") {
+        if (log_enabled[pid()]) {
+                printf( "%d SP %d %d\n", gettimeofday_us(), $me->kvm->vm_id, $me->vcpu_id )
         }
 }

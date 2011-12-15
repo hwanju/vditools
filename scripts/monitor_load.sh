@@ -17,5 +17,5 @@ for prof_id in `seq 1 $max_prof_id`; do
 done
 
 if [ $clean -eq 1 ]; then
-        rm -f load-vm*.dat load-vm*.plt
+        rm -f load-vm*.dat load-vm*.plt event-vm*.dat
 fi
