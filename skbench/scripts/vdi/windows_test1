@@ -1,0 +1,10 @@
+export DISPLAY=:0
+~/dist/wait_signal_64 1 50000
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+spicec -h $IP_HOST -p 5924 -P ~/traces/test1.trace
+
+
+

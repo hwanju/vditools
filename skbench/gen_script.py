@@ -12,7 +12,8 @@ class Gen_script:
 
 		num_of_waits = len(active_guests)
 		if trace_replay == 1:
-			num_of_waits += 1
+			num_of_waits += len(trace_guests)
+			num_of_waits += len(windows_trace_guests)
 	
 		self.job = {}
 
@@ -26,12 +27,14 @@ class Gen_script:
 		
 		self.job[0] += """
 			for GUEST_IP in $GUEST_IPS; do
-				ssh $GUEST_IP ~/job > /tmp/log &
+				ssh $GUEST_IP ~/job > /dev/null &
 			done
 		"""
 
 		if trace_replay == 1:
-			self.job[0] += "ssh %s ~/job > /tmp/log &" % client_machine_ip
+			base = len(active_guests) + 1
+			for n in range(base, len(trace_guests) + len(windows_trace_guests) + base):
+				self.job[0] += "ssh %s ~/job_%d > /dev/null &" % (client_machine_ip, n)
 
 		self.job[0] += """
 			# wait for guests' initializing
@@ -58,7 +61,10 @@ class Gen_script:
 			done
 		"""
 		if trace_replay == 1:
-			self.job[0] += "send_signal_64 %s 10001" % client_machine_ip
+			base = len(active_guests) + 1
+			for n in range(base, len(trace_guests) + len(windows_trace_guests) + base):
+				port = 30000 + n
+				self.job[0] += "send_signal_%s %s %d\n" % (client_machine_bitness, client_machine_ip, port)
 
 		self.job[0] += """
 			echo -n "start_time="
@@ -108,9 +114,9 @@ class Gen_script:
 			self.job[job_id], nr_rep = re.subn( "WAIT_START_SIGNAL", "wait_signal_%s 1 10001   # WAIT_START_SIGNAL\n" % guest_bitness[guest_name], self.job[job_id] )
 
             # replace SEND_BOOT_SIGNAL with real command. If this macro is not found, real command is augmented at start.
-			self.job[job_id], nr_rep = re.subn( "SEND_READY_SIGNAL", "send_signal_%s $IP_HOST 10000     # SEND_BOOT_SIGNAL\n" % guest_bitness[guest_name], self.job[job_id] )
+			self.job[job_id], nr_rep = re.subn( "SEND_READY_SIGNAL", "send_signal_%s $IP_HOST 10000     # SEND_READY_SIGNAL\n" % guest_bitness[guest_name], self.job[job_id] )
 			if nr_rep < 1:
-				self.job[job_id] = 'send_signal_%s $IP_HOST 10000   # SEND_BOOT_SIGNAL\n' % guest_bitness[guest_name] + self.job[job_id]
+				self.job[job_id] = 'send_signal_%s $IP_HOST 10000   # SEND_READY_SIGNAL\n' % guest_bitness[guest_name] + self.job[job_id]
 
 #			if active_linux_guests[guest_id] in active_ubuntu_guests:
 			self.job[job_id] = re.sub( "TO_HOST", "nc -q 0 $IP_HOST $((20000 + %d))" % job_id, self.job[job_id] )
@@ -122,19 +128,21 @@ class Gen_script:
 			self.job[job_id] += 'send_signal_%s $IP_HOST 10002\n' % guest_bitness[guest_name]
 
 		if trace_replay == 1:
-			client_id = len(active_guests)
-			job_id = client_id + 1
+			base = len(active_guests)
+			for guest_id in range(base, len(trace_guests) + len(windows_trace_guests) + base):
+				job_id = guest_id + 1
 
-			f = open( 'scripts/' + workload_scripts[client_id] )
-			self.job[job_id] = f.read()
-			f.close()
+				f = open( 'scripts/' + workload_scripts[guest_id] )
+				self.job[job_id] = f.read()
+				f.close()
 
-			self.job[job_id], nr_rep = re.subn( "WAIT_START_SIGNAL", "wait_signal_%s 1 10001 # WAIT_START_SIGNAL\n" % client_machine_bitness, self.job[job_id] )
+				wait_port = 30000 + job_id
+				self.job[job_id], nr_rep = re.subn( "WAIT_START_SIGNAL", "wait_signal_%s 1 %d # WAIT_START_SIGNAL\n" % (client_machine_bitness, wait_port), self.job[job_id] )
 
-			self.job[job_id], nr_rep = re.subn( "SEND_READY_SIGNAL", "send_signal_%s $IP_HOST 10000 # SEND_BOOT_SIGNAL\n" % client_machine_bitness, self.job[job_id] )
-			if nr_rep < 1:
-				self.job[job_id] = 'send_signal_%s $IP_HOST 10000 # SEND_BOOT_SIGNAL\n' % client_machine_bitness + self.job[job_id]
+				self.job[job_id], nr_rep = re.subn( "SEND_READY_SIGNAL", "send_signal_%s $IP_HOST 10000 # SEND_READY_SIGNAL\n" % client_machine_bitness, self.job[job_id] )
+				if nr_rep < 1:
+					self.job[job_id] = 'send_signal_%s $IP_HOST 10000 # SEND_READY_SIGNAL\n' % client_machine_bitness + self.job[job_id]
 
-			self.job[job_id] += 'send_signal_%s $IP_HOST 10002\n' % client_machine_bitness
+				self.job[job_id] += 'send_signal_%s $IP_HOST 10002\n' % client_machine_bitness
 
 			

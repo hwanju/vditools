@@ -20,19 +20,20 @@ def update(test, n, guest):
 	ret = os.system('scp /tmp/skbench_job %s:~/job' % ip_map[guest])
 	assert ret == 0
 
-def update_client(test, n):
+def update_client(test):
 	# copy distribution files
 	ret = os.system('scp -r ./dist %s:~/dist' % client_machine_ip)
 	assert ret == 0
 
+def update_client_scripts(test, n):	
 	# generate workload
 	f = file('/tmp/skbench_job', 'w')
 	f.write(augmented_job(test, n) + '\n')
 	f.close()
 	os.chmod('/tmp/skbench_job', 0755)
 
-	# copy a workload scropt to a corresponding guest's home dir
-	ret = os.system('scp /tmp/skbench_job %s:~/job' % client_machine_ip)
+	# copy a workload script to a client machine
+	ret = os.system('scp /tmp/skbench_job %s:~/job_%d' % (client_machine_ip, n))
 	assert ret == 0
 
 def augmented_job(test, n):
@@ -82,11 +83,18 @@ def start(test):
 		update(test, n, guest)
 
 	if trace_replay == 1:
+		update_client(test)
 		n = len(active_guests) + 1
-		update_client(test, n)
+
+		for m in range(n, len(trace_guests) + len(windows_trace_guests) + n):
+			update_client_scripts(test, m)
 	
 		for guest in trace_guests:
 			ctl.restore(guest)
+
+		for win_guest in windows_trace_guests:
+			ctl.create(win_guest)
+
 
 	f = file('/tmp/host_job', 'w')
 	f.write(augmented_job(test, 0))
@@ -102,3 +110,4 @@ def start_stop(test):
 def stop():
 	ctl = Control()
 	ctl.destroy_all()	
+	#ctl.shutdown_all()
