@@ -1,0 +1,5 @@
+echo n > conf
+
+phoronix-test-suite run pts/c-ray < conf > /tmp/result
+
+cat /tmp/result | TO_HOST

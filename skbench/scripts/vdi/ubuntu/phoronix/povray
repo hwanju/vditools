@@ -1,0 +1,5 @@
+echo n > conf
+
+phoronix-test-suite run pts/povray < conf > /tmp/result
+
+cat /tmp/result | TO_HOST

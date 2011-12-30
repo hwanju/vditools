@@ -1,0 +1,8 @@
+PACKAGE="dedup"
+
+cd ~/parsec-2.1
+tar xf pkgs/kernels/$PACKAGE/inputs/input_native.tar -C pkgs/kernels/$PACKAGE/run/
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v"
+cat pkgs/kernels/$PACKAGE/run/benchmark.out | TO_HOST
