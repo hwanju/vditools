@@ -1,0 +1,12 @@
+wait_signal_64 1 50000 # Windows should send boot signal via nc.exe with specified port (50000)
+
+SEND_READY_SIGNAL
+
+WAIT_START_SIGNAL
+
+i=0
+while [ $i -lt 10 ]
+do
+	spicec -h 115.145.212.186 -p 5924 -P ~/traces/ppt_open_close
+	let i=i+1
+done

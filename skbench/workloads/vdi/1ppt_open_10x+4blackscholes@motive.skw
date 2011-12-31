@@ -1,0 +1,9 @@
+prolog_script = 'vdi/test_prolog'
+epilog_script = 'vdi/test_epilog'
+workload_scripts = (
+	'vdi/windows/ppt_open_10x',
+	'vdi/ubuntu/parsec/blackscholes',
+	'vdi/ubuntu/parsec/blackscholes',
+	'vdi/ubuntu/parsec/blackscholes',
+	'vdi/ubuntu/parsec/blackscholes',
+)
