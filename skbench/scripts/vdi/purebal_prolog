@@ -9,9 +9,9 @@ i=0
 for gname in ${GROUP_NAME[@]}
 do
 	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
-	mkdir ${GROUP_PATH[i]}
+	mkdir -p ${GROUP_PATH[i]}
 	/bin/echo 65536 > ${GROUP_PATH[i]}/cpu.shares
-	/bin/echo 2 > ${GROUP_PATH[i]}/cpu.balshced 
+	/bin/echo 2 > ${GROUP_PATH[i]}/cpu.balsched 
 
 	pid=($(ps -eLf | grep ${VM_LIST[i]} | awk '{print $4}'))
 	/bin/echo ${pid[0]} > ${GROUP_PATH[i]}/cgroup.procs

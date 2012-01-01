@@ -1,5 +1,5 @@
 #THREAD_OPTION=0		# 0=single, 1=multi
-MEM_NEEDED_OPTION=3		# 1=206M, 2=316M, 3=536M, 4=1.25G, 5=2.42G, 6=4.75G, 7=11.2G, 8,9,...
+MEM_NEEDED_OPTION=1		# 1=206M, 2=316M, 3=536M, 4=1.25G, 5=2.42G, 6=4.75G, 7=11.2G, 8,9,...
 
 cd ~/Pi
 echo "0 $MEM_NEEDED_OPTION" > conf

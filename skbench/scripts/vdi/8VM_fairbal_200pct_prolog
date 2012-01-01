@@ -1,9 +1,12 @@
 CPUCTL_ROOT="/cpuctl"
 GROUP_PATH=()
-GROUP_NAME=(multi single1 single2 single3)
-VM_LIST=(ubuntu1 ubuntu2 ubuntu3 ubuntu4)
+GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8)
+VM_LIST=(ubuntu1 ubuntu2 ubuntu3 ubuntu4 ubuntu5 ubuntu6 ubuntu7 ubuntu8)
 VM_PID=()
-mode=baseline
+mode=fairbal
+imbalance=200
+
+/bin/echo $imbalance > /proc/sys/kernel/balsched_load_imbalance_pct
 
 i=0
 for gname in ${GROUP_NAME[@]}
@@ -11,6 +14,7 @@ do
 	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
 	mkdir -p ${GROUP_PATH[i]}
 	/bin/echo 65536 > ${GROUP_PATH[i]}/cpu.shares
+	/bin/echo 4 > ${GROUP_PATH[i]}/cpu.balsched 
 
 	pid=($(ps -eLf | grep ${VM_LIST[i]} | awk '{print $4}'))
 	/bin/echo ${pid[0]} > ${GROUP_PATH[i]}/cgroup.procs
