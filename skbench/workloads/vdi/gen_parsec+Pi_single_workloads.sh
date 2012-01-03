@@ -1,6 +1,6 @@
 #!/bin/sh
 parsec_workloads="blackscholes  bodytrack  canneal  dedup  facesim  fluidanimate  freqmine  raytrace  streamcluster  swaptions  vips  x264"
-modes="baseline purebal fairbal_pct100 fairbal_pct105 fairbal_pct110"
+modes="baseline purebal fairbal_pct0 fairbal_pct100 fairbal_pct105 fairbal_pct110"
 if [ $# -ne 2 ]; then
         echo "Usage: $0 <# of parsec workloads> <# of Pi_single>"
         exit

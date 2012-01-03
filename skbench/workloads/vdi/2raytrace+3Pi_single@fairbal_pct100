@@ -1,0 +1,9 @@
+prolog_script = 'vdi/fairbal_100pct_prolog'
+epilog_script = 'vdi/fairbal_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/raytrace',
+	'vdi/ubuntu/parsec/raytrace',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+)

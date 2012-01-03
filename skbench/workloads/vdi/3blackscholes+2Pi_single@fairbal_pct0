@@ -1,0 +1,9 @@
+prolog_script = 'vdi/fairbal_0pct_prolog'
+epilog_script = 'vdi/fairbal_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/blackscholes',
+	'vdi/ubuntu/parsec/blackscholes',
+	'vdi/ubuntu/parsec/blackscholes',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+)

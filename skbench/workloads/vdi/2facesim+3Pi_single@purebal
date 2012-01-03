@@ -1,0 +1,9 @@
+prolog_script = 'vdi/purebal_prolog'
+epilog_script = 'vdi/purebal_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/facesim',
+	'vdi/ubuntu/parsec/facesim',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+)
