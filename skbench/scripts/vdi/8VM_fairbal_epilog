@@ -1,3 +1,4 @@
+
 for path in ${GROUP_PATH[@]}
 do
 	/bin/echo 0 > $path/cpu.balsched

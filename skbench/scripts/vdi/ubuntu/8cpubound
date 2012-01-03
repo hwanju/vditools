@@ -1,0 +1,29 @@
+cd ~/cpulimit
+
+SEND_READY_SIGNAL
+
+WAIT_START_SIGNAL
+
+./cpubound &
+./cpubound &
+./cpubound &
+./cpubound &
+./cpubound &
+./cpubound &
+./cpubound &
+./cpubound &
+
+pids=$(ps | grep cpubound | awk '{print $1}')
+for pid in $pids
+do
+	./cpulimit -p $pid -l 95 &
+done
+sleep 170
+
+pids=$(ps | grep cpubound | awk '{print $1}')
+for pid in $pids
+do
+	kill $pid
+done
+
+echo end | TO_HOST

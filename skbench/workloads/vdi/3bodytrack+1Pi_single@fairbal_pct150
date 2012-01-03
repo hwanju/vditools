@@ -1,0 +1,8 @@
+prolog_script = 'vdi/fairbal_150pct_prolog'
+epilog_script = 'vdi/fairbal_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+)

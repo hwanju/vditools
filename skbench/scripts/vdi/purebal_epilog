@@ -1,2 +1,7 @@
+for path in ${GROUP_PATH[@]}
+do
+	/bin/echo 0 > $path/cpu.balsched
+done
+
 echo end_time=`date '+%s'` >> /tmp/$mode.schedstat
 cat /proc/schedstat >> /tmp/$mode.schedstat
