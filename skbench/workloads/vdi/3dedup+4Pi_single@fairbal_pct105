@@ -1,0 +1,11 @@
+prolog_script = 'vdi/fairbal_105pct_prolog'
+epilog_script = 'vdi/fairbal_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/dedup',
+	'vdi/ubuntu/parsec/dedup',
+	'vdi/ubuntu/parsec/dedup',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+)

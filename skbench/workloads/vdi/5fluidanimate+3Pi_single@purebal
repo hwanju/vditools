@@ -1,0 +1,12 @@
+prolog_script = 'vdi/purebal_prolog'
+epilog_script = 'vdi/purebal_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/fluidanimate',
+	'vdi/ubuntu/parsec/fluidanimate',
+	'vdi/ubuntu/parsec/fluidanimate',
+	'vdi/ubuntu/parsec/fluidanimate',
+	'vdi/ubuntu/parsec/fluidanimate',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+	'vdi/ubuntu/Pi/Pi-single-536M',
+)

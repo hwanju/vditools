@@ -1,6 +1,6 @@
 CPUCTL_ROOT="/cpuctl"
 GROUP_PATH=()
-GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8)
+GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8 g9 g10)
 VM_LIST=(ubuntu1 ubuntu2 ubuntu3 ubuntu4 ubuntu5 ubuntu6 ubuntu7 ubuntu8)
 VM_PID=()
 mode=purebal
