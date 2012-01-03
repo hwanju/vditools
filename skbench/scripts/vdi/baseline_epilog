@@ -1,3 +1,2 @@
-
 echo end_time=`date '+%s'` >> /tmp/$mode.schedstat
 cat /proc/schedstat >> /tmp/$mode.schedstat

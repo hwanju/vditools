@@ -1,0 +1,13 @@
+PACKAGE="bodytrack"
+
+cd ~/parsec-2.1
+rm -f pkgs/apps/$PACKAGE/run/benchmark.out
+if [ -e pkgs/apps/$PACKAGE/run/sequenceB_261 ]; then
+        find pkgs/apps/$PACKAGE/run/sequenceB_261 -type f -exec cat {} > /dev/null \;
+else 
+        tar xf pkgs/apps/$PACKAGE/inputs/input_native.tar -C pkgs/apps/$PACKAGE/run/
+fi
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v"
+cat pkgs/apps/$PACKAGE/run/benchmark.out | TO_HOST

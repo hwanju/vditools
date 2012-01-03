@@ -1,8 +1,7 @@
-PACKAGE="blackscholes"
+PACKAGE="streamcluster"
 
 cd ~/parsec-2.1
-mkdir -p pkgs/apps/$PACKAGE/run/
-tar xf pkgs/apps/$PACKAGE/inputs/input_native.tar -C pkgs/apps/$PACKAGE/run/
+rm -f pkgs/apps/$PACKAGE/run/benchmark.out
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v"

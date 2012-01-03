@@ -1,6 +1,7 @@
 PACKAGE="dedup"
 
 cd ~/parsec-2.1
+mkdir -p pkgs/apps/$PACKAGE/run/
 tar xf pkgs/kernels/$PACKAGE/inputs/input_native.tar -C pkgs/kernels/$PACKAGE/run/
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL

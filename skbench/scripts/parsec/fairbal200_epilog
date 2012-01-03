@@ -1,0 +1,7 @@
+echo end_time=`date '+%s'` >> /tmp/$mode"_imbalance_"$imbalance.schedstat 
+cat /proc/schedstat >> /tmp/$mode"_imbalance_"$imbalance.schedstat
+
+for path in ${CPU_GROUP_PATH[@]}
+do
+	/bin/echo 0 > $path/cpu.balsched
+done
