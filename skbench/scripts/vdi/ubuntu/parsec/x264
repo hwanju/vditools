@@ -1,6 +1,7 @@
 PACKAGE="x264"
 
 cd ~/parsec-2.1
+mkdir -p pkgs/apps/$PACKAGE/run/
 tar xf pkgs/apps/$PACKAGE/inputs/input_native.tar -C pkgs/apps/$PACKAGE/run/
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL

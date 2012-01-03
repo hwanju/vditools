@@ -1,7 +1,10 @@
 PACKAGE="canneal"
+TYPE=kernels
 
 cd ~/parsec-2.1
+rm -f pkgs/$TYPE/$PACKAGE/run/benchmark.out
+tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
-bin/parsecmgmt -a run -p $PACKAGE -n 4 -i native -k -s "/usr/bin/time -v"
-cat pkgs/apps/$PACKAGE/run/benchmark.out | TO_HOST
+bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v"
+cat pkgs/$TYPE/$PACKAGE/run/benchmark.out | TO_HOST

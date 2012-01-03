@@ -1,3 +1,6 @@
+echo end_time=`date '+%s'` >> $mode.schedstat
+cat /proc/schedstat >> $mode.schedstat
+
 for path in ${CPU_GROUP_PATH[@]}
 do
 	/bin/echo 0 > $path/cpu.balsched

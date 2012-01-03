@@ -1,11 +1,2 @@
-i=0
-for pid in ${VM_PID[@]}
-do
-	/bin/echo 0 > ${GROUP_PATH[i]}/cpu.balsched
-	/bin/echo $pid > $CPUCTL_ROOT/cgroup.procs
-	rmdir ${GROUP_PATH[i]}
-	let i=i+1	
-done
-
 echo end_time=`date '+%s'` >> /tmp/$mode.schedstat
 cat /proc/schedstat >> /tmp/$mode.schedstat

@@ -4,27 +4,32 @@ global log_enabled
 global tid_to_vcpu_id
 global shorthand_name
 global vm_list
+global id
 
 probe begin {
         shorthand_name[0] = "dst";
         shorthand_name[1] = "self";
         shorthand_name[2] = "all";
         shorthand_name[3] = "all-but-self";
+
+        id = 0
 }
 
 
 probe kernel.trace("kvm_ui") {
-        printf("%d %s %d %d %d\n", gettimeofday_us(), "UI", $kvm->vm_id, $event_type, $event_info)
+        if ($event_type == 3 || ($event_type == 0 && $event_info == 28))
+                id++
+        printf("%d %s %d %d %d id=%d\n", gettimeofday_us(), "UI", $kvm->vm_id, $event_type, $event_info, id)
 }
 probe kernel.trace("kvm_load_check") {
         log_enabled[$vm_id] = $op;
         printf("%s %d %d %d %d\n", "LC", $op, $vm_id, $start_load_time, $end_load_time)
 }
 probe kernel.trace("kvm_vcpu_switch") {
+        if ($op == 0) 
+                tid_to_vcpu_id[tid()] = $vcpu_id
         if (log_enabled[pid()]) {
                 printf( "%d %s %d %d %d %d %d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $state, $flags);
-                if ($op == 0) 
-                        tid_to_vcpu_id[tid()] = $vcpu_id
         }
 }
 probe kernel.trace("kvm_gthread_switch") {
@@ -33,10 +38,10 @@ probe kernel.trace("kvm_gthread_switch") {
         }
 }
 probe kernel.trace("sched_group_weight") {
-        //if (log_enabled[$tgid]) {
-                printf( "%d WT %d %d %d %d %d %d %d\n", gettimeofday_us(), $tgid, $pid in tid_to_vcpu_id ? tid_to_vcpu_id[$pid] : $pid
-                , cpu(), $weight, $group_weight, $vruntime, $group_vruntime)
-        //}
+        if (id) {
+                printf( "%d WT %d %d %d %d %d %d %d ipi=%d pipi=%d\n", gettimeofday_us(), $p->tgid, $p->pid in tid_to_vcpu_id ? tid_to_vcpu_id[$p->pid] : $p->pid
+                , cpu(), $p->se->load->weight, $group_weight, $p->se->vruntime, $group_vruntime, $p->se->ipi_pending, $p->se->parent ? $p->se->parent->ipi_pending : -1)
+        }
 }
 probe kernel.trace("kvm_bg_vcpu") {
         if (log_enabled[pid()]) {
@@ -66,21 +71,71 @@ probe kernel.trace("kvm_apic_ipi") {
         }
 }
 probe kernel.function("list_add_ipi_pending") {
-        if (log_enabled[$p->tgid] && tid() in tid_to_vcpu_id && $p->pid in tid_to_vcpu_id)
+        if ($p && log_enabled[$p->tgid] && tid() in tid_to_vcpu_id && $p->pid in tid_to_vcpu_id)
                 printf( "%d IP %d %d %d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[tid()], tid_to_vcpu_id[$p->pid] )
 }
 probe kernel.function("__list_add_ipi_pending") {
-        if (log_enabled[$p->tgid] && tid() in tid_to_vcpu_id && $p->pid in tid_to_vcpu_id && $p->se->on_rq)
-                printf( "%d QI %d %d %d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[tid()], tid_to_vcpu_id[$p->pid] )
+        //if (log_enabled[$p->tgid] && tid() in tid_to_vcpu_id && $p->pid in tid_to_vcpu_id && $p->se->on_rq)
+        //        printf( "%d QI %d %d %d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[tid()], tid_to_vcpu_id[$p->pid] )
+        if ($p && log_enabled[$p->tgid]) {
+                printf( "%d QI %d %d cpu%d fe=%d grp=%d rq=%d emp=%d notcur=%d\n", gettimeofday_us(), 
+                $p ? $p->tgid : -1,
+                $p ? ($p->pid in tid_to_vcpu_id ? tid_to_vcpu_id[$p->pid] : $p->pid) : -1,
+                $se->cfs_rq->rq->cpu, $force_enqueue, $se->my_q ? 1 : 0, 
+                $se->on_rq, $p ? $p->se->interactive_node->next == &$p->se->interactive_node : -1, $p ? $p->se->cfs_rq->curr != &$p->se : -1)
+        }
+        //if ($force_enqueue == 0 && $se->parent) {
+        //        printf( "\t\tPQI rq=%d emp=%d notcur=%d\n", $p->se->parent->on_rq, $p->se->parent->interactive_node->next == &$p->se->parent->interactive_node,
+        //                $p->se->parent->cfs_rq->curr != $p->se->parent)
+        //}
+}
+probe kernel.function("resched_task") {
+        if (log_enabled[pid()]) {
+                printf( "%d %s %d %d %d\n", gettimeofday_us(), "RT", $p->tgid, $p->pid in tid_to_vcpu_id ? tid_to_vcpu_id[$p->pid] : $p->pid, $p->se->cfs_rq->rq->cpu);
+        }
 }
 probe kernel.trace("kvm_exit") {
         if (log_enabled[pid()]) {
-                printf( "%d EX%d %d %d\n", gettimeofday_us(), $exit_reason, pid(), tid_to_vcpu_id[tid()] )
+                if ($exit_reason == 44)
+                        printf( "%d APIC %d %d\n", gettimeofday_us(), pid(), tid_to_vcpu_id[tid()] )
+                else if ($exit_reason == 12)
+                        printf( "%d HLT %d %d\n", gettimeofday_us(), pid(), tid_to_vcpu_id[tid()] )
+                else
+                        printf( "%d EX%d %d %d\n", gettimeofday_us(), $exit_reason, pid(), tid_to_vcpu_id[tid()] )
         }
 }
+//probe kernel.trace("kvm_ack_irq") {
+//        if (log_enabled[pid()]) {
+//                printf( "%d ACK %d %d irqchip=%d pin=%d\n", gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], $irqchip, $pin )
+//        }
+//}
+probe kernel.trace("kvm_ipi_pending_info") {
+        if (log_enabled[pid()]) {
+                printf( "%d PM %d %d %x\n", gettimeofday_us(), pid(), $vcpu_id, $ipi_pending_mask )
+        }
+}
+probe kernel.trace("ipi_list_debug") {
+        printf( "%d\tILD %d %d %d %s c1=%d c2=%d\n", gettimeofday_us(), $p ? $p->tgid : -1, $p ? ($p->pid in tid_to_vcpu_id ? tid_to_vcpu_id[$p->pid] : $p->pid) : -1, 
+                $cpu,
+                $op == 1 ? "ins" : ($op == 2 ? "del" : ($op == 3 ? "del&pick" : "picked")), $cond1, $cond2)
+}
+probe kernel.function("vcpu_yield") {
+        if (log_enabled[pid()]) {
+                printf( "%d YD %d %d\n", gettimeofday_us(), pid(), tid() in tid_to_vcpu_id ? tid_to_vcpu_id[tid()] : tid() )
+        }
+}
+//probe kernel.trace("kvm_system_task") {
+//        printf( "%d ST %d %d %05x %05x\n", gettimeofday_us(), pid(), $vcpu_id, $system_task_id, $cur_task_id )
+//}
 
 probe module("kvm").function("kvm_vcpu_on_spin") {
         if (log_enabled[pid()]) {
                 printf( "%d SP %d %d\n", gettimeofday_us(), $me->kvm->vm_id, $me->vcpu_id )
         }
+}
+
+probe module("kvm").function("mark_page_dirty").return {
+    if( $gfn >= 0xf0000 && $gfn < 0xf1000 ) {
+            printf( "%d FB %d %d %x\n", gettimeofday_us(), pid(), tid() in tid_to_vcpu_id ? tid_to_vcpu_id[tid()] : tid(), $gfn )
+    }
 }

@@ -1,7 +1,7 @@
 CPUCTL_ROOT="/cpuctl"
 GROUP_PATH=()
-GROUP_NAME=(multi single1 single2 single3)
-VM_LIST=(ubuntu1 ubuntu2 ubuntu3 ubuntu4)
+GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8)
+VM_LIST=(ubuntu1104-1 ubuntu1104-2 ubuntu1104-3 ubuntu1104-4 ubuntu1104-5 ubuntu1104-6 ubuntu1104-7 ubuntu1104-8)
 VM_PID=()
 mode=fairbal
 imbalance=150
@@ -12,13 +12,14 @@ i=0
 for gname in ${GROUP_NAME[@]}
 do
 	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
-	mkdir ${GROUP_PATH[i]}
 	/bin/echo 65536 > ${GROUP_PATH[i]}/cpu.shares
-	/bin/echo 4 > ${GROUP_PATH[i]}/cpu.balshced 
+	/bin/echo 4 > ${GROUP_PATH[i]}/cpu.balsched 
 
-	pid=($(ps -eLf | grep ${VM_LIST[i]} | awk '{print $4}'))
-	/bin/echo ${pid[0]} > ${GROUP_PATH[i]}/cgroup.procs
-	VM_PID[i]=${pid[0]}
+	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
+        if [ "$pid" != "" ]; then
+                /bin/echo $pid > ${GROUP_PATH[i]}/cgroup.procs
+                VM_PID[i]=$pid
+        fi
 
 	let i=i+1
 done
