@@ -76,6 +76,12 @@ def augmented_job(test, n):
 def start(test):
 	ctl = Control()
 
+	for n in range(1, len(active_guests) + 1): 
+		assert n in test.job
+		guest = active_guests[n - 1]
+		ctl.restore(guest)
+		update(test, n, guest)
+
 	if trace_replay == 1:
 		update_client(test)
 		n = len(active_guests) + 1
@@ -87,14 +93,8 @@ def start(test):
 			ctl.create(win_guest)
 
 		for guest in trace_guests:
-			ctl.restore(guest)	
-
-	for n in range(1, len(active_guests) + 1): 
-		assert n in test.job
-		guest = active_guests[n - 1]
-		ctl.restore(guest)
-		update(test, n, guest)
-
+			ctl.restore(guest)
+	
 	f = file('/tmp/host_job', 'w')
 	f.write(augmented_job(test, 0))
 	f.close()
