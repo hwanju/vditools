@@ -1,9 +1,0 @@
-prolog_script = 'vdi/baseline_prolog'
-epilog_script = 'vdi/baseline_epilog'
-workload_scripts = (
-	'vdi/windows/pptlaunch',
-	'vdi/ubuntu/parsec/streamcluster',
-	'vdi/ubuntu/parsec/streamcluster',
-	'vdi/ubuntu/parsec/streamcluster',
-	'vdi/ubuntu/parsec/streamcluster',
-)

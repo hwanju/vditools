@@ -5,6 +5,9 @@ VM_LIST=(ubuntu1104-1 ubuntu1104-2 ubuntu1104-3 ubuntu1104-4 ubuntu1104-5 ubuntu
 VM_PID=()
 mode=purebal
 
+echo 0 > /sys/kernel/mm/ksm/run
+echo 2 > /sys/kernel/mm/ksm/run
+
 i=0
 for gname in ${GROUP_NAME[@]}
 do

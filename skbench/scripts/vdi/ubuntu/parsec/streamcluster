@@ -3,5 +3,5 @@ PACKAGE="streamcluster"
 cd ~/parsec-2.1
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
-bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v" > /tmp/result
+bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -s "/usr/bin/time -v" > /tmp/result
 cat /tmp/result | TO_HOST

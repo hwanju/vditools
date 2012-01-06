@@ -4,9 +4,5 @@ workload_scripts = (
 	'vdi/ubuntu/parsec/vips',
 	'vdi/ubuntu/parsec/vips',
 	'vdi/ubuntu/parsec/vips',
-<<<<<<< HEAD
 	'vdi/ubuntu/Pi/Pi-single-316M',
-=======
-	'vdi/ubuntu/Pi/Pi-single-536M',
->>>>>>> d88f9cd5666235323c8c81c6abf0b7c73dd1faf9
 )

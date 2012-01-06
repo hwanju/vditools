@@ -8,6 +8,9 @@ imbalance=110
 
 /bin/echo $imbalance > /proc/sys/kernel/balsched_load_imbalance_pct
 
+echo 0 > /sys/kernel/mm/ksm/run
+echo 2 > /sys/kernel/mm/ksm/run
+
 i=0
 for gname in ${GROUP_NAME[@]}
 do

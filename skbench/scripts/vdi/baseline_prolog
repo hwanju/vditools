@@ -5,6 +5,15 @@ VM_LIST=(ubuntu1104-1 ubuntu1104-2 ubuntu1104-3 ubuntu1104-4 ubuntu1104-5 ubuntu
 VM_PID=()
 mode=baseline
 
+echo 0 > /sys/kernel/mm/ksm/run
+echo 2 > /sys/kernel/mm/ksm/run
+
+# init
+/bin/echo 0 > /proc/sys/kernel/kvm_ipi_first
+/bin/echo 0 > /proc/sys/kernel/kvm_ipi_grp_first
+/bin/echo 0 > /proc/sys/kernel/kvm_amvp
+/bin/echo 0 > /proc/sys/kernel/kvm_amvp_sched
+
 i=0
 for gname in ${GROUP_NAME[@]}
 do
