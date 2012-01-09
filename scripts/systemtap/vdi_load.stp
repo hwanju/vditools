@@ -24,8 +24,8 @@ probe kernel.trace("kvm_gthread_load") {
 }
 
 probe kernel.trace("kvm_load_info") {
-        printf("%s %d %d %d %d %d %d %d\n", 
-                "LI", $kvm->vm_id, $kvm->monitor_seqnum, $kvm->last_interactive_seqnum, $kvm->interactive_phase, $kvm->pre_monitor_load, $cur_vm_load, $reactive_gtask_load )
+        printf("%s %d %d %d %d %d %d\n", 
+                "LI", $kvm->vm_id, $kvm->interactive_phase, $kvm->pre_monitor_load, $vm_load, $eff_vm_load, $reactive_gtask_load )
 }
 probe kernel.trace("kvm_gtask_stat") {
         printf("%s %d %d %05x %d %d\n", "TS", $vm_id, $interactive_phase, $guest_task_id, $cpu_load, $flags)
