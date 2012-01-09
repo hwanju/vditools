@@ -30,5 +30,7 @@ do
 	let i=i+1
 done
 
+#kvm_set_prio_by_name.sh ${VM_LIST[4]} 19
+
 echo start_time=`date '+%s'` > /tmp/$mode.schedstat
 cat /proc/schedstat >> /tmp/$mode.schedstat
