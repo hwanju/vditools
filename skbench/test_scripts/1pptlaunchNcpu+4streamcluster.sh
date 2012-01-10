@@ -1,8 +1,8 @@
 #!/bin/sh
 
 avail_mode_list="baseline ipigrpfirst amvp10 amvp15 amvp10ipigrpfirst amvp15ipigrpfirst"
-#bg_cpu_list="1 2 4 8"
-bg_cpu_list="8"
+bg_cpu_list="1 2 4 8"
+#bg_cpu_list="8"
 if [ "$CLIENT_ADDR" == "" ]; then
         CLIENT_ADDR=canh1
 fi

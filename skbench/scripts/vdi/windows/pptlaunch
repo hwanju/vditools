@@ -7,7 +7,7 @@ latency_dir=/root/spice/latency
 
 ############ configurable #############
 main_workload=pptlaunch
-think_time_ms=2000
+think_time_ms=1000
 #######################################
 if [ "$bg_workload" == "" ]; then
         workload=$main_workload
