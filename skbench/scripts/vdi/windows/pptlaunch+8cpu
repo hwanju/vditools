@@ -8,6 +8,7 @@ latency_dir=/root/spice/latency
 ############ configurable #############
 bg_workload=8cpu
 main_workload=pptlaunch
+think_time_ms=2000
 #######################################
 if [ "$bg_workload" == "" ]; then
         workload=$main_workload
@@ -18,7 +19,7 @@ fi
 wait_signal_64 1 50000 # Windows should send boot signal via nc.exe with specified port (50000)
 
 if [ "$bg_workload" != "" ]; then
-        spicec -h $host_addr -p 6009 -P $trace_dir/$bg_workload.trace --hide
+        spicec -h $host_addr -p 6009 -P $trace_dir/$bg_workload.trace -T $think_time_ms --hide
 fi
 
 SEND_READY_SIGNAL
@@ -28,7 +29,7 @@ WAIT_START_SIGNAL
 i=0
 while [ $i -lt 2 ]
 do
-	spicec -h $host_addr -p 6009 -P $trace_dir/$main_workload.trace --hide 2> $latency_dir/$workload.latency.$i > $latency_dir/$workload.out.$i
+	spicec -h $host_addr -p 6009 -P $trace_dir/$main_workload.trace -T $think_time_ms --hide 2> $latency_dir/$workload.latency.$i > $latency_dir/$workload.out.$i
 	let i=i+1
         sleep 2
 done
