@@ -1,0 +1,9 @@
+prolog_script = 'vdi/amvp5schedipigrpfirst_prolog'
+epilog_script = 'vdi/common_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/streamcluster',
+	'vdi/ubuntu/parsec/streamcluster',
+	'vdi/ubuntu/parsec/streamcluster',
+	'vdi/ubuntu/parsec/streamcluster',
+	'vdi/windows/pptlaunch+8cpu',
+)

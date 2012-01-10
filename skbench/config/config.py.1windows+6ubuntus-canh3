@@ -1,0 +1,67 @@
+# This is an example of configuration file
+# this configuration is written as a python script, so after you edit, you should rename this file to config.py
+# The form of <field> is only configurable, so you should replace it with your configuration based on each comment
+
+import os
+import sys
+
+# saved state of windows guests which experimented with trace is not necessary 
+guests_saved_state_map = {
+	'ubuntu1104-1': '/guest_snapshots/ubuntu1104-1.saved',
+	'ubuntu1104-2': '/guest_snapshots/ubuntu1104-2.saved',
+	'ubuntu1104-3': '/guest_snapshots/ubuntu1104-3.saved',
+	'ubuntu1104-4': '/guest_snapshots/ubuntu1104-4.saved',
+	'ubuntu1104-5': '/guest_snapshots/ubuntu1104-5.saved',
+	'ubuntu1104-6': '/guest_snapshots/ubuntu1104-6.saved',
+}
+
+guests_image_map = {
+	'ubuntu1104-1': '/guest_images/ubuntu1104-1.qcow2',
+	'ubuntu1104-2': '/guest_images/ubuntu1104-2.qcow2',
+	'ubuntu1104-3': '/guest_images/ubuntu1104-3.qcow2',
+	'ubuntu1104-4': '/guest_images/ubuntu1104-4.qcow2',
+	'ubuntu1104-5': '/guest_images/ubuntu1104-5.qcow2',
+	'ubuntu1104-6': '/guest_images/ubuntu1104-6.qcow2',
+        'win7-1': '/guest_images/win7-1.qcow2'
+}
+
+
+host_ip = '143.248.92.64'
+
+trace_replay = 1
+
+client_machine_ip = '143.248.92.60'
+
+client_machine_bitness = '64'
+
+# IP address of guests which experimented with trace is not necessary 
+ip_map = {
+	'ubuntu1104-1': '143.248.92.95',
+	'ubuntu1104-2': '143.248.92.96',
+	'ubuntu1104-3': '143.248.92.97',
+	'ubuntu1104-4': '143.248.92.98',
+	'ubuntu1104-5': '143.248.92.196',
+	'ubuntu1104-6': '143.248.92.201',
+}
+
+# bitness of guests which experimented with trace is not necessary 
+guest_bitness = {
+	'ubuntu1104-1': '64',
+	'ubuntu1104-2': '64',
+	'ubuntu1104-3': '64',
+	'ubuntu1104-4': '64',
+	'ubuntu1104-5': '64',
+	'ubuntu1104-6': '64',
+}
+
+active_guests = ['ubuntu1104-1', 'ubuntu1104-2', 'ubuntu1104-3', 'ubuntu1104-4', 'ubuntu1104-5', 'ubuntu1104-6']   # active guest's names who participate in the benchmark
+
+trace_guests = []
+
+windows_trace_guests = ['win7-1']
+
+windows_guests_config_map = {
+	'win7-1': '/guest_confs/win7-1.xml',
+}
+
+dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]

@@ -1,0 +1,9 @@
+prolog_script = 'vdi/baseline_prolog'
+epilog_script = 'vdi/baseline_epilog'
+workload_scripts = (
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/ubuntu/parsec/bodytrack',
+	'vdi/windows/pptlaunch+4cpu',
+)

@@ -8,12 +8,15 @@ mode=baseline
 echo 0 > /sys/kernel/mm/ksm/run
 echo 2 > /sys/kernel/mm/ksm/run
 
-# init
+# init first
 /bin/echo 0 > /proc/sys/kernel/kvm_ipi_first
 /bin/echo 0 > /proc/sys/kernel/kvm_ipi_grp_first
 /bin/echo 0 > /proc/sys/kernel/kvm_resched_no_preempt
 /bin/echo 0 > /proc/sys/kernel/kvm_amvp
 /bin/echo 0 > /proc/sys/kernel/kvm_amvp_sched
+
+# set
+/bin/echo 1 > /proc/sys/kernel/kvm_resched_no_preempt
 
 i=0
 for gname in ${GROUP_NAME[@]}
@@ -30,8 +33,6 @@ do
 
 	let i=i+1
 done
-
-#kvm_set_prio_by_name.sh ${VM_LIST[4]} 19
 
 echo start_time=`date '+%s'` > /tmp/$mode.schedstat
 cat /proc/schedstat >> /tmp/$mode.schedstat

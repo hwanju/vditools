@@ -1,0 +1,13 @@
+for path in ${GROUP_PATH[@]}
+do
+	/bin/echo 0 > $path/cpu.balsched
+done
+
+/bin/echo 0 > /proc/sys/kernel/kvm_ipi_first
+/bin/echo 0 > /proc/sys/kernel/kvm_ipi_grp_first
+/bin/echo 0 > /proc/sys/kernel/kvm_resched_no_preempt
+/bin/echo 0 > /proc/sys/kernel/kvm_amvp
+/bin/echo 0 > /proc/sys/kernel/kvm_amvp_sched
+
+echo end_time=`date '+%s'` >> /tmp/$mode.schedstat
+cat /proc/schedstat >> /tmp/$mode.schedstat
