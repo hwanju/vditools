@@ -17,6 +17,8 @@ if [ "$1" == "all" ]; then
 else
         mode_list=$*
 fi
+
+mkdir -p results/1pptlaunchNcpu+4streamline
         
 for nr_bg_cpu in $bg_cpu_list; do
         for mode in $mode_list; do 
