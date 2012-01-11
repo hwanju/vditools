@@ -6,7 +6,7 @@ trace_dir=/root/spice/traces
 latency_dir=/root/spice/latency
 
 ############ configurable #############
-bg_workload=1cpu
+bg_workload=1cpu-win7
 main_workload=pptlaunch
 think_time_ms=500
 #######################################
