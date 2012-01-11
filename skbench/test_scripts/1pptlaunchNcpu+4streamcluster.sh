@@ -2,7 +2,7 @@
 
 avail_mode_list="baseline ipigrpfirst amvp10 amvp15 amvp10ipigrpfirst amvp15ipigrpfirst"
 #bg_cpu_list="1 2 4 8"
-bg_cpu_list="4"
+bg_cpu_list="1 2 4"
 if [ "$CLIENT_ADDR" == "" ]; then
         CLIENT_ADDR=canh1
 fi
@@ -24,7 +24,7 @@ for nr_bg_cpu in $bg_cpu_list; do
         for mode in $mode_list; do 
                 workload_name=1pptlaunch${nr_bg_cpu}cpu+4streamcluster@$mode
                 workload_path=workloads/vdi/$workload_name
-                latency_name=pptlaunch+${nr_bg_cpu}cpu.latency
+                latency_name=pptlaunch+${nr_bg_cpu}cpu-win7.latency
 
                 if [ -e $workload_path ]; then
                         if [ "$mode" == "baseline" ]; then
