@@ -1,0 +1,9 @@
+#!/usr/bin/stap -v
+
+global nr_ple
+probe module("kvm").function("kvm_vcpu_on_spin") {
+        nr_ple++
+}
+probe end {
+        printf ("nr_ple=%d\n", nr_ple)
+}

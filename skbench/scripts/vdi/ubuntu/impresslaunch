@@ -7,7 +7,7 @@ latency_dir=/root/spice/latency
 
 ############ configurable #############
 main_workload=impresslaunch
-think_time_ms=500
+think_time_ms=0
 #######################################
 if [ "$bg_workload" == "" ]; then
         workload=$main_workload
