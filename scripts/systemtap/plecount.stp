@@ -1,8 +1,14 @@
 #!/usr/bin/stap -v
 
 global nr_ple
+global ui_vm_id
+
+probe kernel.trace("kvm_ui") {
+        ui_vm_id = $kvm->vm_id;
+}
 probe module("kvm").function("kvm_vcpu_on_spin") {
-        nr_ple++
+        if ($me->kvm->vm_id == ui_vm_id)
+                nr_ple++
 }
 probe end {
         printf ("nr_ple=%d\n", nr_ple)
