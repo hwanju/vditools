@@ -2,6 +2,9 @@
 
 while [ true ]
 do
-	cat /proc/diskstats | grep vda5 >> /tmp/swaps
+	for name in $1
+	do
+		cat /proc/diskstats | grep $name >> /tmp/swaps_$name
+	done
 	sleep 1
 done
