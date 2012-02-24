@@ -1,0 +1,7 @@
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+sleep 30
+
+echo end | TO_HOST

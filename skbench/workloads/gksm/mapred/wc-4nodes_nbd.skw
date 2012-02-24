@@ -1,0 +1,8 @@
+prolog_script = 'gksm/mapred/common_prolog'
+epilog_script = 'gksm/mapred/common_epilog'
+workload_scripts = (
+	'gksm/mapred/wc_master_nbd',
+	'gksm/mapred/slave1_nbd',
+	'gksm/mapred/slave2_nbd',
+	'gksm/mapred/slave3_nbd',
+)

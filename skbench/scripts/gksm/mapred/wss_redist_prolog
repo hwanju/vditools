@@ -1,0 +1,32 @@
+VMS="ubuntu1104-mapred-master ubuntu1104-mapred-slave1 ubuntu1104-mapred-slave2 ubuntu1104-mapred-slave3"
+REDIST_TARGETS="ubuntu1104-mapred-slave1 ubuntu1104-mapred-slave2 ubuntu1104-mapred-slave3"
+MEMS=(640 640 640 640)
+SWAP_DISKS="dm-0 dm-1 dm-2 dm-3"
+GKSM_CGROUP=/sys/kernel/mm/ksm
+SCAN_RATE=500
+
+i=0
+for vm in $VMS
+do
+	let MEM_KB=${MEMS[i]}*1024
+	virsh setmem $vm $MEM_KB
+	virsh vcpupin $vm 0 $i
+	let i=i+1
+done
+
+pidstat -C kvm 5 > /tmp/cpu_usage &
+swap_activity.sh "$SWAP_DISKS" &
+sharing_logging.sh $GKSM_CGROUP /tmp/sharings &
+mem_redist_fair.sh $REDIST_TARGETS / /sys/kernel/mm/ksm > /tmp/actual_mem &
+sleep 1
+temp=($(ps | grep pidstat | awk '{print $1}'))
+stat_pid=${temp[0]}
+temp=($(ps | grep swap_ | awk '{print $1}'))
+swap_pid=${temp[0]}
+temp=($(ps | grep sharing_ | awk '{print $1}'))
+sharing_pid=${temp[0]}
+temp=($(ps | grep mem_redist| awk '{print $1}'))
+redist_pid=${temp[0]}
+
+/bin/echo $SCAN_RATE > $GKSM_CGROUP/pages_to_scan
+/bin/echo 1 > $GKSM_CGROUP/run

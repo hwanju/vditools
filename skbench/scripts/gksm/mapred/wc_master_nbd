@@ -1,0 +1,15 @@
+HADOOP_PATH=/root/hadoop-1.0.0
+
+echo deadline > /sys/block/nbd0/queue/scheduler
+nbd-client 115.145.212.176 5000 /dev/nbd0 -swap
+sleep 1
+swapon -p 0 /dev/nbd0
+
+SEND_READY_SIGNAL
+
+WAIT_START_SIGNAL
+
+/usr/bin/time -v $HADOOP_PATH/bin/hadoop jar $HADOOP_PATH/hadoop-examples-1.0.0.jar wordcount random-text out 1>> /tmp/result 2>> /tmp/result
+
+cat /tmp/result | TO_HOST
+

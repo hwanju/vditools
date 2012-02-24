@@ -1,0 +1,6 @@
+kill $stat_pid
+kill $sharing_pid
+kill $swap_pid
+kill $redist_pid
+
+/bin/echo 2 > $GKSM_CGROUP/run

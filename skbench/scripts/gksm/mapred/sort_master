@@ -1,0 +1,10 @@
+HADOOP_PATH=/root/hadoop-1.0.0
+
+SEND_READY_SIGNAL
+
+WAIT_START_SIGNAL
+
+/usr/bin/time -v $HADOOP_PATH/bin/hadoop jar $HADOOP_PATH/hadoop-examples-1.0.0.jar sort random-data sorted-data 1>> /tmp/result 2>> /tmp/result
+
+cat /tmp/result | TO_HOST
+

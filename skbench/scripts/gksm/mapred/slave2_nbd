@@ -1,0 +1,11 @@
+echo deadline > /sys/block/nbd0/queue/scheduler
+nbd-client 115.145.212.176 7000 /dev/nbd0 -swap
+sleep 1
+swapon -p 0 /dev/nbd0
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+sleep 30
+
+echo end | TO_HOST

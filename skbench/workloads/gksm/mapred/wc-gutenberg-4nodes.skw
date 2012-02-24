@@ -1,0 +1,8 @@
+prolog_script = 'mapred/common_prolog'
+epilog_script = 'mapred/common_epilog'
+workload_scripts = (
+	'mapred/wc_master_gutenberg',
+	'mapred/slave',
+	'mapred/slave',
+	'mapred/slave',
+)
