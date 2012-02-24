@@ -17,6 +17,7 @@ fi
 
 wait_signal_64 1 50000 # Windows should send boot signal via nc.exe with specified port (50000)
 
+sleep 10
 if [ "$bg_workload" != "" ]; then
         spicec -h $host_addr -p 6009 -P $trace_dir/$bg_workload.trace -T $think_time_ms --hide
 fi

@@ -1,5 +1,5 @@
 prolog_script = 'vdi/baseline_prolog'
-epilog_script = 'vdi/baseline_epilog'
+epilog_script = 'vdi/common_epilog'
 workload_scripts = (
 	'vdi/ubuntu/parsec/streamcluster',
 	'vdi/ubuntu/parsec/streamcluster',
