@@ -5,46 +5,53 @@
 import os
 import sys
 
+# saved state of windows guests which experimented with trace is not necessary 
 guests_saved_state_map = {
-	'parsec1': '/root/vm_saved/parsec1.saved',
-	'parsec2': '/root/vm_saved/parsec2.saved',
-	'parsec3': '/root/vm_saved/parsec3.saved',
-	'parsec4': '/root/vm_saved/parsec4.saved',
-#'interactive': '/root/vm_saved/interactive.saved',
+	'ubuntu1104-mapred-master': '/guest_snapshots_gksm/ubuntu1104-mapred-master.saved',
+	'ubuntu1104-mapred-slave1': '/guest_snapshots_gksm/ubuntu1104-mapred-slave1.saved',
+	'ubuntu1104-mapred-slave2': '/guest_snapshots_gksm/ubuntu1104-mapred-slave2.saved',
+	'ubuntu1104-mapred-slave3': '/guest_snapshots_gksm/ubuntu1104-mapred-slave3.saved',
 }
 
 guests_image_map = {
-	'parsec1': '/root/vm_images/parsec1.qcow2',
-	'parsec2': '/root/vm_images/parsec2.qcow2',
-	'parsec3': '/root/vm_images/parsec3.qcow2',
-	'parsec4': '/root/vm_images/parsec4.qcow2',
-#'interactive': '/root/vm_images/interactive.qcow2',
+	'ubuntu1104-mapred-master': '/guest_images_gksm/ubuntu1104-mapred-master.qcow2',
+	'ubuntu1104-mapred-slave1': '/guest_images_gksm/ubuntu1104-mapred-slave1.qcow2',
+	'ubuntu1104-mapred-slave2': '/guest_images_gksm/ubuntu1104-mapred-slave2.qcow2',
+	'ubuntu1104-mapred-slave3': '/guest_images_gksm/ubuntu1104-mapred-slave3.qcow2',
 }
+
 
 host_ip = '115.145.212.186'
 
 trace_replay = 0
 
-client_machine_ip = '115.145.212.176'
+client_machine_ip = ''
 
-client_machine_bitness = '64'
+client_machine_bitness = ''
 
+# IP address of guests which experimented with trace is not necessary 
 ip_map = {
-	'parsec1': '115.145.212.177',
-	'parsec2': '115.145.212.178',
-	'parsec3': '115.145.212.179',
-	'parsec4': '115.145.212.180',
+	'ubuntu1104-mapred-master': '115.145.212.177',
+	'ubuntu1104-mapred-slave1': '115.145.212.178',
+	'ubuntu1104-mapred-slave2': '115.145.212.179',
+	'ubuntu1104-mapred-slave3': '115.145.212.180',
 }
 
+# bitness of guests which experimented with trace is not necessary 
 guest_bitness = {
-	'parsec1': '64',
-	'parsec2': '64',
-	'parsec3': '64',
-	'parsec4': '64',
+	'ubuntu1104-mapred-master': '64',
+	'ubuntu1104-mapred-slave1': '64',
+	'ubuntu1104-mapred-slave2': '64',
+	'ubuntu1104-mapred-slave3': '64',
 }
 
-active_guests = ['parsec1', 'parsec2', 'parsec3', 'parsec4']   # active guest's names who participate in the benchmark
+active_guests = ['ubuntu1104-mapred-master', 'ubuntu1104-mapred-slave1', 'ubuntu1104-mapred-slave2', 'ubuntu1104-mapred-slave3']   # active guest's names who participate in the benchmark
 
-trace_guests = ['']
+trace_guests = []
+
+windows_trace_guests = []
+
+windows_guests_config_map = {
+}
 
 dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]
