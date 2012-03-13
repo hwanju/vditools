@@ -27,7 +27,7 @@ if __name__ == '__main__':
 	workload_file = ''
 	private_arg = ''
 
-	opts, args = getopt.getopt( sys.argv[1:], 'w:p' )
+	opts, args = getopt.getopt( sys.argv[1:], 'w:p:' )
 	for opt, arg in opts:
 		if opt == '-w':     # config file
 			workload_file = arg

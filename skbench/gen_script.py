@@ -66,6 +66,11 @@ class Gen_script:
 				port = 30000 + n
 				self.job[0] += "send_signal_%s %s %d\n" % (client_machine_bitness, client_machine_ip, port)
 
+		if iterate_mode == 1:
+			num_of_guests = len(active_guests)
+			for n in range(num_of_guests):
+				self.job[0] += 'iterate.sh %d %s %d %s > /dev/null &\n' % (num_of_guests, private_arg, n, ip_map[active_guests[n]])
+
 		self.job[0] += """
 			echo -n "start_time="
 			date +%%s %s
@@ -118,10 +123,11 @@ class Gen_script:
 			if nr_rep < 1:
 				self.job[job_id] = 'send_signal_%s $IP_HOST 10000   # SEND_READY_SIGNAL\n' % guest_bitness[guest_name] + self.job[job_id]
 
-#			if active_linux_guests[guest_id] in active_ubuntu_guests:
 			self.job[job_id] = re.sub( "TO_HOST", "nc -q 0 $IP_HOST $((20000 + %d))" % job_id, self.job[job_id] )
-#			else:
-#				self.job[job_id] = re.sub( "TO_HOST", "nc $IP_HOST $((20000 + %d))" % job_id, self.job[job_id] )
+
+			self.job[job_id] = re.sub( "FROM_HOST", "nc -l -p 50000", self.job[job_id])
+
+			self.job[job_id] = re.sub( "SEND_QUERY_SIGNAL", "send_signal_%s $IP_HOST $((40000 + %d))\n" % (guest_bitness[guest_name], job_id ), self.job[job_id])
 	
             # Workload start
 
