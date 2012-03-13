@@ -1,0 +1,34 @@
+# warmup
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+while [ 1 ]
+do
+	# main_workload
+	sleep 10
+	echo test_10 >> /tmp/result
+
+	# query to host whether the minimum number of iterations are ended
+	FROM_HOST > /tmp/query &
+	SEND_QUERY_SIGNAL
+
+	# get a message from host
+	while [ 1 ]
+	do
+		repeat=$(cat /tmp/query)
+		if [ -n "$repeat" ]
+		then
+			break
+		fi
+		sleep 1
+	done
+
+	# (stop or repeat)
+	if [ "$repeat" = "stop" ]
+	then
+		break
+	fi
+done
+
+cat /tmp/result | TO_HOST
