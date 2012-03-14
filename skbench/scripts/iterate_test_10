@@ -10,25 +10,25 @@ do
 	echo test_10 >> /tmp/result
 
 	# query to host whether the minimum number of iterations are ended
-	FROM_HOST > /tmp/query &
 	SEND_QUERY_SIGNAL
 
 	# get a message from host
 	while [ 1 ]
 	do
-		repeat=$(cat /tmp/query)
-		if [ -n "$repeat" ]
+		if [ -e /tmp/query ]
 		then
 			break
 		fi
-		sleep 1
+		sleep 0.01
 	done
 
 	# (stop or repeat)
-	if [ "$repeat" = "stop" ]
+	reply=$(cat /tmp/query)
+	if [ "$reply" = "stop" ]
 	then
 		break
 	fi
+	rm /tmp/query
 done
 
 cat /tmp/result | TO_HOST

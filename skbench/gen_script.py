@@ -69,7 +69,7 @@ class Gen_script:
 		if iterate_mode == 1:
 			num_of_guests = len(active_guests)
 			for n in range(num_of_guests):
-				self.job[0] += 'iterate.sh %d %s %d %s > /dev/null &\n' % (num_of_guests, private_arg, n, ip_map[active_guests[n]])
+				self.job[0] += 'iterate.sh %d %s %d %s &\n' % (num_of_guests, private_arg, n, ip_map[active_guests[n]])
 
 		self.job[0] += """
 			echo -n "start_time="
