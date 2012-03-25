@@ -6,7 +6,7 @@ default_disabled_services = ['sysklogd', 'klogd']
 jobs = []
 
 class Gen_script:
-	def __init__(self, workload_file, private_arg):
+	def __init__(self, workload_file, iterate_mode, private_arg):
         # load config file and workload file
 		exec( open( workload_file ).read() )
 

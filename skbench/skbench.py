@@ -25,14 +25,17 @@ def print_usage_and_exit():
 if __name__ == '__main__':
 	# default arguments
 	workload_file = ''
+        iterate_mode = 0
 	private_arg = ''
 
-	opts, args = getopt.getopt( sys.argv[1:], 'w:p:' )
+	opts, args = getopt.getopt( sys.argv[1:], 'w:p:i' )
 	for opt, arg in opts:
 		if opt == '-w':     # config file
 			workload_file = arg
 		if opt == '-p':
 			private_arg = arg
+                if opt == '-i':
+                        iterate_mode = 1
 
 	if len(args) < 1 or args[0] not in commands: 
 		print_usage_and_exit();
@@ -47,4 +50,4 @@ if __name__ == '__main__':
 
 	print '%s is used as a workload file' % workload_file
        
-	commands[cmd]( Gen_script( workload_file, private_arg) )
+	commands[cmd]( Gen_script( workload_file, iterate_mode, private_arg) )
