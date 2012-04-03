@@ -1,0 +1,28 @@
+#!/usr/bin/stap -v
+
+global start_time_us
+
+probe begin {
+        start_time_us = gettimeofday_us()
+        printf("#cpu\ttime\tshares\ttoal\tload\tloadc\ttgload\tavg\tperiod\tremote\n")
+}
+probe kernel.trace("sched_cfs_shares") {
+        cpu_id = @cast($se->cfs_rq, "cfs_rq")->rq->cpu
+        tg_shares = @cast($se->my_q, "cfs_rq")->tg->shares
+
+        tg_load_weight = @cast($se->my_q, "cfs_rq")->tg->load_weight->counter
+        load_contribution = @cast($se->my_q, "cfs_rq")->load_contribution
+        load_weight = @cast($se->my_q, "cfs_rq")->load->weight
+        //cur_tg_load_weight = tg_load_weight - load_contribution + load_weight;
+
+        loadavg = @cast($se->my_q, "cfs_rq")->load_avg
+        period  = @cast($se->my_q, "cfs_rq")->load_period
+
+        printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", cpu_id, gettimeofday_us() - start_time_us, 
+                $shares, tg_shares, load_weight, load_contribution, tg_load_weight, loadavg, period, cpu_id != $this_cpu)
+}
+
+// for debugging
+//probe kernel.function("update_shares_sync") {
+//        printf("%d\t%d\tsync\t%s\n", $rq->cpu, gettimeofday_us() - start_time_us, kernel_string($caller))
+//}
