@@ -6,15 +6,21 @@
 #include <sched.h>
 #include <sys/syscall.h>
 
-#define COMPUT_ITER 1000000
-unsigned long comput_iter = COMPUT_ITER;
-int is_skewed;
-int is_pinned;
 int nr_threads;
+int is_pinned;
 
 pthread_barrier_t barrier;
 
 void *worker(void *arg) {
+        int id = *(int *)arg;
+
+        if (is_pinned) {
+                cpu_set_t cpuset;
+                CPU_ZERO(&cpuset);
+                CPU_SET(id, &cpuset);
+	        if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset))
+                        perror("sched_setaffinity");
+        }
         while(1);
 }
 
@@ -24,15 +30,19 @@ int main(int argc, char **argv)
         pthread_t *threads;
         int *ids;
 
-        if (argc != 2) {
-                fprintf(stderr, "Usage: %s <# of threads>\n", argv[0]);
+        if (argc < 2) {
+                fprintf(stderr, "Usage: %s <# of threads> [1=affinity(default: 0=no affinity)]] \n", argv[0]);
                 exit(-1);
         }
         nr_threads = atoi(argv[1]);
+        if (argc > 2)
+                is_pinned = atoi(argv[2]);
         threads = (pthread_t *)malloc(nr_threads * sizeof(pthread_t));
+        ids = (int *)malloc(nr_threads * sizeof(int));
 
         for (i=0 ; i < nr_threads ; i++) {
-                pthread_create(threads + i, NULL, worker, NULL);
+                ids[i] = i;
+                pthread_create(threads + i, NULL, worker, ids + i);
         }
 
         for (i=0 ; i < nr_threads ; i++) {
@@ -40,6 +50,7 @@ int main(int argc, char **argv)
         }
 
         free(threads);
+        free(ids);
 
 	return 0;
 }

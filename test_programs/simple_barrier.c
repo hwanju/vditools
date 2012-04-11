@@ -76,6 +76,7 @@ int main(int argc, char **argv)
         }
 
         free(threads);
+        free(ids);
 
 	return 0;
 }

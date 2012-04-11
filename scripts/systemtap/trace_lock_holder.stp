@@ -1,0 +1,17 @@
+#!/usr/bin/stap -v
+
+global lock_holder
+
+probe module("kvm").function("get_lock_holder_eip").return {
+        lh_eip = $return;
+        if (lh_eip) {
+                //printf ("lh_eip=%x\n", lh_eip)
+                lock_holder[lh_eip]++
+        }
+}
+
+probe end {
+        foreach ([eip] in lock_holder-) {
+                printf ("%x\t%d\n", eip, lock_holder[eip])
+        }
+}
