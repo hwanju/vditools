@@ -4,14 +4,11 @@ global lock_holder
 
 probe module("kvm").function("get_lock_holder_eip").return {
         lh_eip = $return;
-        if (lh_eip) {
-                //printf ("lh_eip=%x\n", lh_eip)
-                lock_holder[lh_eip]++
-        }
+        lock_holder[lh_eip, $caller_info]++
 }
 
 probe end {
-        foreach ([eip] in lock_holder-) {
-                printf ("%x\t%d\n", eip, lock_holder[eip])
+        foreach ([eip, caller_info] in lock_holder-) {
+                printf ("%x\t%d\t%x\n", eip, lock_holder[eip, caller_info], caller_info)
         }
 }

@@ -1,5 +1,6 @@
 #!/bin/sh
 
+stp_cmd=systemtap/trace_lock_holder.stp
 lh_param_path=/sys/module/kvm/parameters/trace_guest_lock_holder
 
 if [ ! -e $lh_param_path ]; then
@@ -7,9 +8,9 @@ if [ ! -e $lh_param_path ]; then
         exit
 fi
 
-stp_cmd=systemtap/trace_lock_holder.stp
-if [ $# -ge 1 ]; then
-        stp_cmd=$1
+trace_mode=1
+if [ $# -eq 1 ]; then
+        trace_mode=$1
 fi
 
 if [ ! -e $stp_cmd ]; then
@@ -18,6 +19,6 @@ if [ ! -e $stp_cmd ]; then
         exit
 fi
 
-echo 1 > $lh_param_path
+echo $trace_mode > $lh_param_path
 $stp_cmd > lh.result
 echo 0 > $lh_param_path
