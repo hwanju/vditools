@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 $vmlinux_path="/backup/vdikernel/vmlinux";
 die "Usage: $0 <lock holder trace file> [vmlinux path(=$vmlinux_path)]\n" unless @ARGV > 0;

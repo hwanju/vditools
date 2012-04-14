@@ -32,7 +32,7 @@ $l = $line - $coverage_line;
 ##print "$line, $head, $tail, $l\n";
 foreach $s (@src) {
         #print "$src_file:$l\t$s";
-        if ($s =~ /_lock/ && $s !~ /unlock/) {
+        if (($s =~ /_lock/ || $s =~ /_LOCK/) && $s !~ /unlock/) {
                 # check exceptional cases
                 if ($l < $line && $s =~ /void spin_lock/) {
                         $spin_lock_call = "s";
@@ -59,7 +59,7 @@ else {
         if ($nr_fails < 15) {
                 $eip = hex($eip) - 4;
                 $eip = sprintf("%lx", $eip);
-                #print "try: $eip\n";
+		#print "try: $eip\n";
                 goto retry;
         }
         else {
