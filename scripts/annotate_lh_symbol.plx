@@ -8,12 +8,18 @@ $vmlinux_path = shift(@ARGV) if @ARGV;
 open FD, $fn or die "file open error: $fn\n";
 
 while(<FD>) {
-        if (/([a-f0-9]+)\s+(\d+)\s+([0-9a-f]+)/) {
-                $eip = $1;
-                $count = $2;
-                $caller_info = $3;
-                $info = "none\n";
-                $info = `./find_lh_loc.plx $eip $vmlinux_path 2> /dev/null` if $eip ne "0";
-                print "$eip\t$count\t$caller_info\t$info";
+	unless (/^#/) {
+		@info = split(/\s+/);
+
+		print "$_";
+		foreach $i (1 .. 4) {
+			$eip = $info[$i];
+			if ($eip ne "0") {
+				$indent = "";
+				foreach $j (2 .. $i) { $indent .= "\t" };
+				$syminfo = `./find_lh_loc.plx $eip $vmlinux_path 2> /dev/null`;
+				print "# $indent$syminfo";
+			}
+		}
         }
 }

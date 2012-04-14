@@ -2,13 +2,20 @@
 
 global lock_holder
 
-probe module("kvm").function("get_lock_holder_eip").return {
-        lh_eip = $return;
-        lock_holder[lh_eip, $caller_info]++
+probe module("kvm").function("kvm_get_lock_holder").return {
+	lock_holder[$vcpu->arch->lh->lock_holder->depth, 
+		$vcpu->arch->lh->lock_holder->eip[0], 
+		$vcpu->arch->lh->lock_holder->eip[1], 
+		$vcpu->arch->lh->lock_holder->eip[2], 
+		$vcpu->arch->lh->lock_holder->eip[3], 
+		$caller_info] <<< 1 
 }
 
 probe end {
-        foreach ([eip, caller_info] in lock_holder-) {
-                printf ("%x\t%d\t%x\n", eip, lock_holder[eip, caller_info], caller_info)
+        foreach ([depth, eip1, eip2, eip3, eip4, caller_info] in lock_holder-) {
+                printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\n", 
+			depth, eip1, eip2, eip3, eip4, 
+			@count(lock_holder[depth, eip1, eip2, eip3, eip4, caller_info]), 
+			caller_info)
         }
 }
