@@ -1,0 +1,40 @@
+#!/usr/bin/stap -v
+
+global ipi_xmit_timestamp
+global time_ipi_and_lhp
+
+probe __scheduler.ctxswitch.tp {
+        ipi_xmit_timestamp[next_tid] = 0
+}
+
+probe module("kvm").function("kvm_get_lock_holder").return {
+	if ($vcpu->arch->lh->lock_holder->depth && ipi_xmit_timestamp[tid()]) {	/* lhp */
+		time_ipi_and_lhp[$vcpu->arch->lh->lock_holder->depth, 
+			$vcpu->arch->lh->lock_holder->eip[0], 
+			$vcpu->arch->lh->lock_holder->eip[1], 
+			$vcpu->arch->lh->lock_holder->eip[2], 
+			$vcpu->arch->lh->lock_holder->eip[3], 
+			$caller_info] <<< gettimeofday_us() - ipi_xmit_timestamp[tid()]
+	}
+}
+
+probe end {
+        foreach ([depth, eip1, eip2, eip3, eip4, caller_info] in time_ipi_and_lhp-) {
+                printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\n", 
+			depth, eip1, eip2, eip3, eip4, 
+			@count(time_ipi_and_lhp[depth, eip1, eip2, eip3, eip4, caller_info]), 
+			caller_info)
+		printf( "count=%d, avg=%d, min=%d, max=%d\n", 
+			@count(time_ipi_and_lhp[depth, eip1, eip2, eip3, eip4, caller_info]), 
+			@avg(time_ipi_and_lhp[depth, eip1, eip2, eip3, eip4, caller_info]), 
+			@min(time_ipi_and_lhp[depth, eip1, eip2, eip3, eip4, caller_info]), 
+			@max(time_ipi_and_lhp[depth, eip1, eip2, eip3, eip4, caller_info]) )
+		print(@hist_log(time_ipi_and_lhp[depth, eip1, eip2, eip3, eip4, caller_info]))
+        }
+}
+
+probe kernel.trace("kvm_apic_ipi") {
+        vec = $icr_low & 0xFF
+        if (vec == 0xfd)       /* reschedule */
+                ipi_xmit_timestamp[tid()] = gettimeofday_us()
+}
