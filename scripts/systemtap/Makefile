@@ -5,3 +5,24 @@ trace_lock_holder: trace_lock_holder.stp
 
 trace_lock_holder_resched_ipi: trace_lock_holder_resched_ipi.stp
 	stap -v -r `uname -r` $@.stp -m $@
+
+time_ipi_prof: time_ipi_prof.stp
+	stap -v -r `uname -r` $@.stp -m $@
+
+resched_ipi_stat: resched_ipi_stat.stp
+	stap -v -r `uname -r` $@.stp -m $@
+
+futex_wake_prof: futex_wake_prof.stp
+	stap -v -r `uname -r` $@.stp -m $@
+
+uvf_debug: uvf_debug.stp
+	stap -v -r `uname -r` $@.stp -m $@
+
+uvf_prof: uvf_prof.stp
+	stap -v -r `uname -r` $@.stp -m $@
+
+balsched_debug: balsched_debug.stp
+	stap -v -r `uname -r` $@.stp -m $@
+
+balsched_prof: balsched_prof.stp
+	stap -v -r `uname -r` $@.stp -m $@
