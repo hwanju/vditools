@@ -1,0 +1,137 @@
+#!/usr/bin/stap -v
+
+global resched_ipi_sent_time_us
+global ut_op
+global ut_arg
+global urgent_event
+global vcpu_list
+global se_pid
+global se_vcpu
+
+probe begin {
+	ut_op[1] = "enq"
+	ut_arg[1, 0] = "ts"	// urgent_tslice
+	ut_arg[1, 1] = "fe"	// force_enqueue
+	ut_arg[1, 2] = "N"
+
+	ut_op[2] = "deq"
+	ut_arg[2, 0] = "N"
+	ut_arg[2, 1] = "N"
+	ut_arg[2, 2] = "N"
+
+	ut_op[3] = "iter"
+	ut_arg[3, 0] = "rq"	// on_rq
+	ut_arg[3, 1] = "tq"	// this_rq
+	ut_arg[3, 2] = "N"
+
+	ut_op[4] = "pick"
+	ut_arg[4, 0] = "mo"	// offset from min_vruntime
+	ut_arg[4, 1] = "lo"	// offset from left vruntime
+	ut_arg[4, 2] = "N"
+
+	ut_op[5] = "fail"
+	ut_arg[5, 0] = "mo"
+	ut_arg[5, 1] = "lo"
+	ut_arg[5, 2] = "N"
+
+	ut_op[6] = "req"
+	ut_arg[6, 0] = "ts"
+	ut_arg[6, 1] = "rs"	// remaining_tslice
+	ut_arg[6, 2] = "rt"	// urgent_runtime
+
+	ut_op[7] = "res"
+	ut_arg[7, 0] = "rs"	// remaining_tslice
+	ut_arg[7, 1] = "rt"	
+	ut_arg[7, 2] = "fg"	// flags (hrtimer_active|in_hrtick_handler|urgent|on_rq|ret)
+
+	ut_op[8] = "mod"
+	ut_arg[8, 0] = "ts"
+	ut_arg[8, 1] = "rs"
+	ut_arg[8, 2] = "rr"	// remaining_runtime
+
+	ut_op[9] = "utm"
+	ut_arg[9, 0] = "dl"	// delay	
+	ut_arg[9, 1] = "rt"
+	ut_arg[9, 2] = "N"
+}
+probe kernel.trace("kvm_apic_ipi") {
+	vec = $icr_low & 0xff
+	if (tid() in vcpu_list) {
+		cur_time_us = gettimeofday_us()
+		if (vec == 0xfd)	// resched ipi
+			resched_ipi_sent_time_us[tid()] = cur_time_us
+		printf("%d\tSI d%d_v%d-p%d v=%x\n",
+			cur_time_us,
+			pid(), vcpu_list[tid()], cpu(),
+			vec
+		)
+	}
+}
+probe kernel.function("set_urgent_task") {
+	if ($p->pid in vcpu_list) {
+		printf("%d\t\tUT d%d_v%d-p%d->d%d_v%d s=%d\n",
+			gettimeofday_us(),
+			pid(), vcpu_list[tid()], cpu(),
+			$p->tgid, vcpu_list[$p->pid],
+			$tslice / 1000
+		)
+	}
+}
+probe kernel.function("set_urgent_entity") {
+	printf("%d\t\t UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d\n",
+		gettimeofday_us(),
+		se_pid[$se],
+		se_vcpu[$se],
+		$se->cfs_rq->rq->cpu,
+		!$se->my_q,
+		$se->on_rq,
+		$se->cfs_rq->curr == $se,
+		$se->urgent_node->next == &$se->urgent_node,
+		$force_enqueue
+	)
+}
+probe kernel.trace("sched_urgent_entity") {
+	if ($op != 7 || $p->pid in vcpu_list) {
+		if ($op != 7 || $arg3 & 0x01)
+			urgent_event[$op] <<< 1
+		printf("%d\t\t\tOP %s d%d_v%d-p%d %s=%d %s=%d %s=",
+			gettimeofday_us(),
+			ut_op[$op],
+			$p ? $p->tgid : -1, 
+			$p ? vcpu_list[$p->pid] : -1, 
+			$cpu,
+			ut_arg[$op, 0], $arg1, 
+			ut_arg[$op, 1], $arg2,
+			ut_arg[$op, 2]
+		)
+		if ($op != 7)
+			printf("%d\n", $arg3)
+		else 
+			printf("%x\n", $arg3)
+	}
+}
+probe __scheduler.ctxswitch.tp {
+	if ((prev_tid in vcpu_list) || (next_tid in vcpu_list)) {
+		printf("%d S d%d_v%d-p%d:u%dq%d->d%d_v%d-p%d:u%d\n", 
+			gettimeofday_us(),
+			prev_pid, vcpu_list[prev_tid], cpu(), $prev->se->urgent, $prev->se->on_rq,
+			next_pid, vcpu_list[next_tid], cpu(), $next->se->urgent
+		)
+		se = @cast($next->se->cfs_rq, "cfs_rq")->curr	// trick because &$next->se cannot be referenced
+		se_pid[se] = next_pid
+		se_vcpu[se] = vcpu_list[next_tid]
+
+		se_pid[$next->se->parent] = next_pid
+		se_vcpu[$next->se->parent] = vcpu_list[next_tid]
+	}
+}
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    vcpu_list[tid()] = $vcpu->vcpu_id
+}
+probe end {
+	printf("urgent event stat\n")
+	foreach ([op+] in urgent_event) {
+		printf("%s\t%d\n", ut_op[op], @count(urgent_event[op]))
+	}
+
+}

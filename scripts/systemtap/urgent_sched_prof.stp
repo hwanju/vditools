@@ -1,0 +1,90 @@
+#!/usr/bin/stap -v
+
+global resched_ipi_sent_time_us
+global resched_ipi_bug_count
+global last_urgent_put_us
+global lock_sched_us
+global urgent_limit_us
+global ut_op
+global urgent_event
+
+probe begin {
+	lock_sched_us = 90	// 90% of 100us
+
+	urgent_limit_us = 500	// 500us
+
+	ut_op[1] = "enq"
+	ut_op[2] = "deq"
+	ut_op[3] = "iter"
+	ut_op[4] = "pick"
+	ut_op[5] = "fail"
+	ut_op[6] = "req"
+	ut_op[7] = "res"
+	ut_op[8] = "mod"
+	ut_op[9] = "utm"
+}
+probe kernel.trace("kvm_apic_ipi") {
+	vec = $icr_low & 0xff
+	if (vec == 0xfd) {	// resched ipi
+		resched_ipi_sent_time_us[tid()] = gettimeofday_us()
+	}
+}
+probe kernel.trace("sched_urgent_entity") {
+	if ($op != 7) {
+		urgent_event[$op] <<< 1
+	}
+	else if ($p->se->is_vcpu) {
+		if ($arg3 & 0x01) 
+			urgent_event[$op] <<< 1
+	}
+}
+probe kernel.function("put_prev_task") {
+	if ($prev->se->on_rq && $prev->se->is_vcpu && $prev->se->urgent) {
+		last_urgent_put_us[$prev->pid] = gettimeofday_us()
+		//print("PPT\n")
+		//print_backtrace()
+	}
+}
+probe __scheduler.ctxswitch.tp {
+	// check prev
+	if ($prev->se->is_vcpu && 
+	    $prev->se->on_rq && 
+	    ([prev_tid] in resched_ipi_sent_time_us)) {
+		curr_time_us = gettimeofday_us()
+		resched_delta = curr_time_us - resched_ipi_sent_time_us[prev_tid]
+		urgent_runtime_us = 
+			($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000
+		if (resched_delta < lock_sched_us && urgent_runtime_us < urgent_limit_us) {
+			printf ("BUG: resched_delta=%d urgent_runtime_us=%d urgent=%d urgent_tslice=%d delay_after_urgent=%d\n", 
+				resched_delta, urgent_runtime_us, $prev->se->urgent, $prev->se->urgent_tslice,
+				prev_tid in last_urgent_put_us ? curr_time_us - last_urgent_put_us[prev_tid] : 0)
+			resched_ipi_bug_count <<< 1
+		}
+	}
+	resched_ipi_sent_time_us[prev_tid] = 0
+}
+probe end {
+	printf("resched_ipi_bug_count=%d\n", @count(resched_ipi_bug_count))
+
+	printf("urgent event stat\n")
+	foreach ([op+] in urgent_event) {
+		printf("%s\t%d\n", ut_op[op], @count(urgent_event[op]))
+	}
+
+}
+
+// spare codes
+//probe kernel.trace("kvm_apic_ipi") {
+//	vec = $icr_low & 0xff
+//	if (vec == 0xfd) {	// resched ipi
+//		resched_ipi_sent_time_us[tid()] = gettimeofday_us()
+//	}
+//}
+//global resched_by_hrtick
+//probe kernel.trace("sched_urgent_entity") {
+//	if ($op == 7 && $p->se->is_vcpu) {	//res
+//		if ($arg3 == 0x1e) {	//ret == 0, but others are all set
+//			resched_by_hrtick[$p->pid] = gettimeofday_us()
+//		}
+//	}
+//}

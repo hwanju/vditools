@@ -15,10 +15,10 @@ resched_ipi_stat: resched_ipi_stat.stp
 futex_wake_prof: futex_wake_prof.stp
 	stap -v -r `uname -r` $@.stp -m $@
 
-uvf_debug: uvf_debug.stp
+urgent_sched_debug: urgent_sched_debug.stp
 	stap -v -r `uname -r` $@.stp -m $@
 
-uvf_prof: uvf_prof.stp
+urgent_sched_prof: urgent_sched_prof.stp
 	stap -v -r `uname -r` $@.stp -m $@
 
 balsched_debug: balsched_debug.stp
