@@ -16,7 +16,7 @@ futex_wake_prof: futex_wake_prof.stp
 	stap -v -r `uname -r` $@.stp -m $@
 
 urgent_sched_debug: urgent_sched_debug.stp
-	stap -v -r `uname -r` $@.stp -m $@
+	stap -v -r `uname -r` $@.stp `cat /sys/module/kvm/parameters/resched_ipi_unlock_latency_ns` `cat /sys/module/kvm/parameters/tlb_shootdown_latency_ns` -m $@
 
 urgent_sched_prof: urgent_sched_prof.stp
 	stap -v -r `uname -r` $@.stp -m $@
