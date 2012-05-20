@@ -1,6 +1,7 @@
 #!/usr/bin/stap -v
 
 global resched_ipi_xmit_time_us
+global resched_stat
 global ut_op
 global ut_arg
 global urgent_event
@@ -23,7 +24,7 @@ probe begin {
 	ut_op[1] = "enq"
 	ut_arg[1, 0] = "ts"	// urgent_tslice
 	ut_arg[1, 1] = "sy"	// sync
-	ut_arg[1, 2] = "N"
+	ut_arg[1, 2] = "ut"	// urgent: 1==URGENT_TAIL, 2==URGENT_HEAD
 
 	ut_op[2] = "deq"
 	ut_arg[2, 0] = "N"
@@ -47,8 +48,8 @@ probe begin {
 
 	ut_op[6] = "req"
 	ut_arg[6, 0] = "ts"
-	ut_arg[6, 1] = "rs"	// remaining_tslice
-	ut_arg[6, 2] = "rt"	// urgent_runtime
+	ut_arg[6, 1] = "rt"	// urgent_runtime
+	ut_arg[6, 2] = "ut"
 
 	ut_op[7] = "res"
 	ut_arg[7, 0] = "rs"	// remaining_tslice
@@ -63,7 +64,7 @@ probe begin {
 	ut_op[9] = "utm"
 	ut_arg[9, 0] = "dl"	// delay	
 	ut_arg[9, 1] = "rt"
-	ut_arg[9, 2] = "N"
+	ut_arg[9, 2] = "ut"	// or 3==URGENT_EXPIRED
 }
 probe kernel.trace("kvm_apic_ipi") {
 	vec = $icr_low & 0xff
@@ -89,7 +90,7 @@ probe kernel.function("set_urgent_task") {
 	}
 }
 probe kernel.function("set_urgent_entity") {
-	printf("%d\t\t  UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d ts=%d:%d\n",
+	printf("%d\t\t  UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d ts=%d:%d ht=%x\n",
 		gettimeofday_us(),
 		se_pid[$se],
 		$se in se_vcpu ? se_vcpu[$se] : -1,
@@ -100,33 +101,67 @@ probe kernel.function("set_urgent_entity") {
 		$se->urgent_node->next == &$se->urgent_node,
 		$sync,
 		$tslice / 1000,
-		$se->urgent_node->next != &$se->urgent_node ? $se->urgent_tslice / 1000 : 0
+		$se->urgent_node->next != &$se->urgent_node ? $se->urgent_tslice / 1000 : 0,
+		$se->cfs_rq->rq->hrtick_timer->state
 	)
 }
 probe kernel.trace("sched_urgent_entity") {
 	if ($op != 7 || $p->pid in vcpu_list) {
 		if ($op != 7 || $arg3 & 0x01)
 			urgent_event[$op] <<< 1
-		printf("%d\t\t\tOP %s d%d_v%d-p%d %s=%d %s=%d %s=",
+		printf("%d\t\t\tOP %s d%d_v%d-p%d %s=%d %s=%d ",
 			gettimeofday_us(),
 			ut_op[$op],
 			$p ? $p->tgid : -1, 
 			$p ? vcpu_list[$p->pid] : -1, 
 			$cpu,
 			ut_arg[$op, 0], $arg1 > 10000 || $arg1 < 0 ? $arg1 / 1000 : $arg1, 
-			ut_arg[$op, 1], $arg2 > 10000 || $arg2 < 0 ? $arg2 / 1000 : $arg2,
-			ut_arg[$op, 2]
+			ut_arg[$op, 1], $arg2 > 10000 || $arg2 < 0 ? $arg2 / 1000 : $arg2
 		)
-		if ($op != 7)
-			printf("%d\n", $arg3 > 10000 || $arg3 < 0 ? $arg3 / 1000 : $arg3)
-		else 
-			printf("a%d:h%d:u%d:q%d:r%d\n",		// a: hrtick active, h: hrtick handler
+		if ($op != 7) {
+			if ($op == 8 &&	/* mod */
+			    (resched_stat[$p->pid] == 1 || resched_stat[$p->pid] == 2))
+				resched_stat[$p->pid] += 2
+			else if ($op == 6) {	/* req */
+				if (resched_stat[$p->pid] == 0)
+					print("YD ")	/* yield */
+				else if (resched_stat[$p->pid] == 1) {
+					if ($p->se->urgent != 1)
+						print("B1 ")
+					else
+						print("QT ")
+				}
+				else if (resched_stat[$p->pid] == 2)
+					print("B2 ")
+				else if (resched_stat[$p->pid] == 3)
+					print("UM ")	/* res-urgent -> mod */
+				else if (resched_stat[$p->pid] == 4)
+					print("NM ")	/* res-non-urgent -> mod */
+				else
+					print("OT ")	/* others (=0) */
+			}
+
+			printf("%s=%d\n", 
+				ut_arg[$op, 2], 
+				$arg3 > 10000 || $arg3 < 0 ? $arg3 / 1000 : $arg3
+			)
+		}
+		else {	/* res */
+			printf("%s=a%d:h%d:u%d:q%d:r%d\n",		// a: hrtick active, h: hrtick handler
+				ut_arg[$op, 2],
 				($arg3>>4) & 0x1, 
 				($arg3>>3) & 0x1, 
 				($arg3>>2) & 0x1, 
 				($arg3>>1) & 0x1, 
 				$arg3 & 0x1 
 			)
+			if (!($arg3 & 0x1)) {
+				if ($p->se->urgent)
+					resched_stat[$p->pid] = 1
+				else	/* not urgent */
+					resched_stat[$p->pid] = 2
+			}
+		}
 	}
 }
 probe __scheduler.ctxswitch.tp {
@@ -137,6 +172,24 @@ probe __scheduler.ctxswitch.tp {
 			prev_pid, vcpu_list[prev_tid], cpu(), $prev->se->urgent, $prev->se->on_rq,
 			next_pid, vcpu_list[next_tid], cpu(), $next->se->urgent, $next->se->urgent_tslice / 1000
 		)
+		if ($prev->se->on_rq && $prev->pid in vcpu_list &&
+		    resched_ipi_xmit_time_us[$prev->pid]) {
+			latency = cur_time_us - resched_ipi_xmit_time_us[$prev->pid]
+			if (latency < resched_ipi_unlock_latency_us) {
+				// warning
+				printf("%d ## warn d%d_v%d-p%d resched (lat=%d rt=%d pu=%d ts=%d)\n",
+					cur_time_us, 
+					$prev->tgid, 
+					vcpu_list[$prev->pid],
+					cpu(),
+					latency,
+					($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
+					$prev->se->urgent,
+					$prev->se->urgent_tslice / 1000
+				)
+				//print_backtrace()
+			}
+		}
 		// trick because &$next->se cannot be referenced
 		se = @cast($next->se->cfs_rq, "cfs_rq")->curr
 		se_pid[se] = next_pid
@@ -145,6 +198,7 @@ probe __scheduler.ctxswitch.tp {
 		se_pid[$next->se->parent] = next_pid
 
 		resched_ipi_xmit_time_us[next_tid] = 0
+		resched_stat[next_tid] = 0
 	}
 }
 probe module("kvm").function("kvm_arch_vcpu_load") {
@@ -157,27 +211,27 @@ probe end {
 	}
 
 }
-probe kernel.function("put_prev_task") {
-	if ($prev->se->on_rq && $prev->pid in vcpu_list &&
-	    resched_ipi_xmit_time_us[$prev->pid]) {
-		cur_time_us = gettimeofday_us()
-		latency = cur_time_us - resched_ipi_xmit_time_us[$prev->pid]
-		if (latency < resched_ipi_unlock_latency_us) {
-			// warning
-			printf("%d ## PP d%d_v%d-p%d resched (lat=%d rt=%d pu=%d ts=%d)\n",
-				cur_time_us, 
-				$prev->tgid, 
-				vcpu_list[$prev->pid],
-				$prev->se->cfs_rq->rq->cpu,
-				latency,
-				($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
-				$prev->se->urgent,
-				$prev->se->urgent_tslice / 1000
-			)
-			print_backtrace()
-		}
-	}
-}
+//probe kernel.function("put_prev_task") {
+//	if ($prev->se->on_rq && $prev->pid in vcpu_list &&
+//	    resched_ipi_xmit_time_us[$prev->pid]) {
+//		cur_time_us = gettimeofday_us()
+//		latency = cur_time_us - resched_ipi_xmit_time_us[$prev->pid]
+//		if (latency < resched_ipi_unlock_latency_us) {
+//			// warning
+//			printf("%d ## PP d%d_v%d-p%d resched (lat=%d rt=%d pu=%d ts=%d)\n",
+//				cur_time_us, 
+//				$prev->tgid, 
+//				vcpu_list[$prev->pid],
+//				$prev->se->cfs_rq->rq->cpu,
+//				latency,
+//				($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
+//				$prev->se->urgent,
+//				$prev->se->urgent_tslice / 1000
+//			)
+//			//print_backtrace()
+//		}
+//	}
+//}
 // caller of set_need_resched()
 //probe kernel.function("rcu_implicit_offline_qs"), kernel.function("print_cpu_stall"), kernel.function("force_quiescent_state"), kernel.function("__rcu_pending") {
 //	if (tid() in vcpu_list && resched_ipi_xmit_time_us[tid()]) {
