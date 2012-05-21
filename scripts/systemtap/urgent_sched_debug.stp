@@ -8,6 +8,13 @@ global urgent_event
 global vcpu_list
 global se_pid
 global se_vcpu
+global running
+global tlb_ipi_recv_time_us
+
+global verbose
+global debug_level
+global warn_level
+//global err_level
 
 global resched_ipi_unlock_latency_us
 global tlb_shootdown_latency_us
@@ -15,11 +22,25 @@ global tlb_shootdown_latency_us
 probe begin {
 	resched_ipi_unlock_latency_us = $1 / 1000
 	tlb_shootdown_latency_us = $2 / 1000
+	verbose = $3
 
 	printf("# resched_ipi_unlock_latency_us=%d\n", 
 				resched_ipi_unlock_latency_us)
 	printf("# tlb_shootdown_latency_us=%d\n", 
 				tlb_shootdown_latency_us)
+	printf("# verbose=%d\n", verbose)
+	debug_level = 3
+	warn_level = 2
+	//err_level = 1
+
+	//if (verbose == debug_level) {		/* add 20% overhead */
+	//	resched_ipi_unlock_latency_us += (resched_ipi_unlock_latency_us / 5)
+	//	tlb_shootdown_latency_us += (tlb_shootdown_latency_us / 5)
+	//}
+	//else if (verbose == warn_level) {	/* add 10% overhead */
+	//	resched_ipi_unlock_latency_us += (resched_ipi_unlock_latency_us / 10)
+	//	tlb_shootdown_latency_us += (tlb_shootdown_latency_us / 10)
+	//}
 
 	ut_op[1] = "enq"
 	ut_arg[1, 0] = "ts"	// urgent_tslice
@@ -58,7 +79,7 @@ probe begin {
 
 	ut_op[8] = "mod"
 	ut_arg[8, 0] = "ts"
-	ut_arg[8, 1] = "rs"
+	ut_arg[8, 1] = "er"	// exec_runtime
 	ut_arg[8, 2] = "rr"	// remaining_runtime
 
 	ut_op[9] = "utm"
@@ -72,67 +93,80 @@ probe kernel.trace("kvm_apic_ipi") {
 		cur_time_us = gettimeofday_us()
 		if (vec == 0xfd)	// resched ipi
 			resched_ipi_xmit_time_us[tid()] = cur_time_us
-		printf("%d\tSI d%d_v%d-p%d v=%x\n",
-			cur_time_us,
-			pid(), vcpu_list[tid()], cpu(),
-			vec
-		)
+		if (verbose >= debug_level) 
+			printf("%d\tSI d%d_v%d-p%d v=%x\n",
+				cur_time_us,
+				pid(), vcpu_list[tid()], cpu(),
+				vec
+			)
 	}
 }
 probe kernel.function("set_urgent_task") {
 	if ($p->pid in vcpu_list) {
-		printf("%d\t\tUT d%d_v%d-p%d->d%d_v%d ts=%d\n",
-			gettimeofday_us(),
-			pid(), vcpu_list[tid()], cpu(),
-			$p->tgid, vcpu_list[$p->pid],
-			$tslice / 1000
-		)
+		if (verbose >= debug_level) 
+			printf("%d\t\tUT d%d_v%d-p%d->d%d_v%d ts=%d\n",
+				gettimeofday_us(),
+				pid(), vcpu_list[tid()], cpu(),
+				$p->tgid, vcpu_list[$p->pid],
+				$tslice / 1000
+			)
 	}
 }
 probe kernel.function("set_urgent_entity") {
-	printf("%d\t\t  UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d ts=%d:%d ht=%x\n",
-		gettimeofday_us(),
-		se_pid[$se],
-		$se in se_vcpu ? se_vcpu[$se] : -1,
-		$se->cfs_rq->rq->cpu,
-		!$se->my_q,
-		$se->on_rq,
-		$se->cfs_rq->curr == $se,
-		$se->urgent_node->next == &$se->urgent_node,
-		$sync,
-		$tslice / 1000,
-		$se->urgent_node->next != &$se->urgent_node ? $se->urgent_tslice / 1000 : 0,
-		$se->cfs_rq->rq->hrtick_timer->state
-	)
+	if (verbose >= debug_level) 
+		printf("%d\t\t  UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d ts=%d:%d ht=%x\n",
+			gettimeofday_us(),
+			se_pid[$se],
+			$se in se_vcpu ? se_vcpu[$se] : -1,
+			$se->cfs_rq->rq->cpu,
+			!$se->my_q,
+			$se->on_rq,
+			$se->cfs_rq->curr == $se,
+			$se->urgent_node->next == &$se->urgent_node,
+			$sync,
+			$tslice / 1000,
+			$se->urgent_node->next != &$se->urgent_node ? $se->urgent_tslice / 1000 : 0,
+			$se->cfs_rq->rq->hrtick_timer->state
+		)
+	/* trick: tlb_shootdown_latency_us MUST be different
+	 * from resched_ipi_unlock_latency_us */
+	if (!$se->my_q && se_pid[$se] && tlb_shootdown_latency_us == ($tslice / 1000)) {
+		if (running[se_pid[$se]]) 
+			tlb_ipi_recv_time_us[se_pid[$se]] = gettimeofday_us()
+		else
+			tlb_ipi_recv_time_us[se_pid[$se]] = -1
+	}
 }
 probe kernel.trace("sched_urgent_entity") {
 	if ($op != 7 || $p->pid in vcpu_list) {
 		if ($op != 7 || $arg3 & 0x01)
 			urgent_event[$op] <<< 1
-		printf("%d\t\t\tOP %s d%d_v%d-p%d %s=%d %s=%d ",
-			gettimeofday_us(),
-			ut_op[$op],
-			$p ? $p->tgid : -1, 
-			$p ? vcpu_list[$p->pid] : -1, 
-			$cpu,
-			ut_arg[$op, 0], $arg1 > 10000 || $arg1 < 0 ? $arg1 / 1000 : $arg1, 
-			ut_arg[$op, 1], $arg2 > 10000 || $arg2 < 0 ? $arg2 / 1000 : $arg2
-		)
+		if (verbose >= debug_level) 
+			printf("%d\t\t\tOP %s d%d_v%d-p%d:l%d %s=%d %s=%d ",
+				gettimeofday_us(),
+				ut_op[$op],
+				$p ? $p->tgid : -1, 
+				$p ? vcpu_list[$p->pid] : -1, 
+				$cpu,
+				$cpu == cpu(),
+				ut_arg[$op, 0], $arg1 > 10000 || $arg1 < 0 ? $arg1 / 1000 : $arg1, 
+				ut_arg[$op, 1], $arg2 > 10000 || $arg2 < 0 ? $arg2 / 1000 : $arg2
+			)
 		if ($op != 7) {
 			if ($op == 8 &&	/* mod */
 			    (resched_stat[$p->pid] == 1 || resched_stat[$p->pid] == 2))
 				resched_stat[$p->pid] += 2
-			else if ($op == 6) {	/* req */
+			else if ($op == 6 && verbose >= debug_level) {	/* req */
 				if (resched_stat[$p->pid] == 0)
 					print("YD ")	/* yield */
 				else if (resched_stat[$p->pid] == 1) {
 					if ($p->se->urgent != 1)
-						print("B1 ")
+						print("B1 ")	/* bug1 */
 					else
-						print("QT ")
+						print("QT ")	/* queue tail */
 				}
 				else if (resched_stat[$p->pid] == 2)
-					print("B2 ")
+					print("B2 ")		/* bug2 */
 				else if (resched_stat[$p->pid] == 3)
 					print("UM ")	/* res-urgent -> mod */
 				else if (resched_stat[$p->pid] == 4)
@@ -141,20 +175,22 @@ probe kernel.trace("sched_urgent_entity") {
 					print("OT ")	/* others (=0) */
 			}
 
-			printf("%s=%d\n", 
-				ut_arg[$op, 2], 
-				$arg3 > 10000 || $arg3 < 0 ? $arg3 / 1000 : $arg3
-			)
+			if (verbose >= debug_level) 
+				printf("%s=%d\n", 
+					ut_arg[$op, 2], 
+					$arg3 > 10000 || $arg3 < 0 ? $arg3 / 1000 : $arg3
+				)
 		}
 		else {	/* res */
-			printf("%s=a%d:h%d:u%d:q%d:r%d\n",		// a: hrtick active, h: hrtick handler
-				ut_arg[$op, 2],
-				($arg3>>4) & 0x1, 
-				($arg3>>3) & 0x1, 
-				($arg3>>2) & 0x1, 
-				($arg3>>1) & 0x1, 
-				$arg3 & 0x1 
-			)
+			if (verbose >= debug_level) 
+				printf("%s=a%d:h%d:u%d:q%d:r%d\n",		// a: hrtick active, h: hrtick handler
+					ut_arg[$op, 2],
+					($arg3>>4) & 0x1, 
+					($arg3>>3) & 0x1, 
+					($arg3>>2) & 0x1, 
+					($arg3>>1) & 0x1, 
+					$arg3 & 0x1 
+				)
 			if (!($arg3 & 0x1)) {
 				if ($p->se->urgent)
 					resched_stat[$p->pid] = 1
@@ -167,27 +203,44 @@ probe kernel.trace("sched_urgent_entity") {
 probe __scheduler.ctxswitch.tp {
 	if ((prev_tid in vcpu_list) || (next_tid in vcpu_list)) {
 		cur_time_us = gettimeofday_us()
-		printf("%d S d%d_v%d-p%d:u%dq%d->d%d_v%d-p%d:u%d:ts%d\n", 
-			cur_time_us,
-			prev_pid, vcpu_list[prev_tid], cpu(), $prev->se->urgent, $prev->se->on_rq,
-			next_pid, vcpu_list[next_tid], cpu(), $next->se->urgent, $next->se->urgent_tslice / 1000
-		)
-		if ($prev->se->on_rq && $prev->pid in vcpu_list &&
-		    resched_ipi_xmit_time_us[$prev->pid]) {
-			latency = cur_time_us - resched_ipi_xmit_time_us[$prev->pid]
-			if (latency < resched_ipi_unlock_latency_us) {
-				// warning
-				printf("%d ## warn d%d_v%d-p%d resched (lat=%d rt=%d pu=%d ts=%d)\n",
-					cur_time_us, 
-					$prev->tgid, 
-					vcpu_list[$prev->pid],
-					cpu(),
-					latency,
-					($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
-					$prev->se->urgent,
-					$prev->se->urgent_tslice / 1000
-				)
-				//print_backtrace()
+		if (verbose >= debug_level) 
+			printf("%d S d%d_v%d-p%d:u%dq%d->d%d_v%d-p%d:u%d:ts%d\n", 
+				cur_time_us,
+				prev_pid, vcpu_list[prev_tid], cpu(), $prev->se->urgent, $prev->se->on_rq,
+				next_pid, vcpu_list[next_tid], cpu(), $next->se->urgent, $next->se->urgent_tslice / 1000
+			)
+		if ($prev->se->on_rq && $prev->pid in vcpu_list && verbose >= warn_level) {
+			if (resched_ipi_xmit_time_us[$prev->pid]) {
+				latency = cur_time_us - resched_ipi_xmit_time_us[$prev->pid]
+				if (latency < resched_ipi_unlock_latency_us) {
+					printf("%d ## warn: RESCHED d%d_v%d-p%d (lat=%d rt=%d prev_u=%d next_u=%d ts=%d)\n",
+							cur_time_us, 
+							$prev->tgid, 
+							vcpu_list[$prev->pid],
+							cpu(),
+							latency,
+							($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
+							$prev->se->urgent,
+							$next->se->urgent,
+							$prev->se->urgent_tslice / 1000
+					)
+				}
+			}
+			if (tlb_ipi_recv_time_us[prev_tid] > 0) {
+				latency = cur_time_us - tlb_ipi_recv_time_us[prev_tid]
+				if (latency < tlb_shootdown_latency_us) {
+					printf("%d ## warn: TLB d%d_v%d-p%d (lat=%d rt=%d prev_u=%d next_u=%d ts=%d)\n",
+							cur_time_us, 
+							$prev->tgid, 
+							vcpu_list[$prev->pid],
+							cpu(),
+							latency,
+							($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
+							$prev->se->urgent,
+							$next->se->urgent,
+							$prev->se->urgent_tslice / 1000
+					)
+				}
 			}
 		}
 		// trick because &$next->se cannot be referenced
@@ -199,6 +252,14 @@ probe __scheduler.ctxswitch.tp {
 
 		resched_ipi_xmit_time_us[next_tid] = 0
 		resched_stat[next_tid] = 0
+
+		if (tlb_ipi_recv_time_us[next_tid] == -1)
+			tlb_ipi_recv_time_us[next_tid] = cur_time_us
+
+		tlb_ipi_recv_time_us[prev_tid] = 0
+
+		running[prev_tid] = 0
+		running[next_tid] = 1
 	}
 }
 probe module("kvm").function("kvm_arch_vcpu_load") {
