@@ -22,26 +22,32 @@ probe kernel.trace("kvm_apic_ipi") {
 
 probe module("kvm").function("kvm_get_lock_holder").return {
 	if ($return) {
-		if ($point_flag == 0x01) {	/* involuntary preemption */
+		if ($point_flag == 0x01 
+		    && !$p->se->urgent && $p->on_rq) {	/* involuntary preemption */
+			caller_info = $caller_info
+			//if ($p->se->urgent)
+			//	caller_info |= 0x10
 			lhp_eip[$vcpu->arch->lh->lock_holder->depth, 
 				$vcpu->arch->lh->lock_holder->eip[0], 
 				$vcpu->arch->lh->lock_holder->eip[1], 
 				$vcpu->arch->lh->lock_holder->eip[2], 
 				$vcpu->arch->lh->lock_holder->eip[3], 
-				$caller_info] <<< 1 
+				caller_info] <<< 1 
 			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[0], $vcpu->arch->lh->lock_holder->lock[0]] <<< 1
 			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[1], $vcpu->arch->lh->lock_holder->lock[1]] <<< 1
 			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[2], $vcpu->arch->lh->lock_holder->lock[2]] <<< 1
 			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[3], $vcpu->arch->lh->lock_holder->lock[3]] <<< 1
 
-			resched_time = resched_xmit_time[tid()]
+			//resched_time = resched_xmit_time[tid()]
+			resched_time = resched_xmit_time[$p->pid]
 			if ($vcpu->arch->lh->lock_holder->depth > 0) { 	/* lhp */
 				if (resched_time > 0)	/* resched ipi sent during the last timeslice */
 					lhp_after_resched_ipi[$vcpu->arch->lh->lock_holder->depth, 
 						$vcpu->arch->lh->lock_holder->eip[0], 
 						$vcpu->arch->lh->lock_holder->eip[1], 
 						$vcpu->arch->lh->lock_holder->eip[2], 
-						$vcpu->arch->lh->lock_holder->eip[3]] <<< (gettimeofday_us() - resched_time)
+						$vcpu->arch->lh->lock_holder->eip[3],
+						caller_info] <<< (gettimeofday_us() - resched_time)
 			}
 			monitored_pid[pid()] = 1
 		}
@@ -75,12 +81,12 @@ probe end {
 	foreach ([lock, eip] in eip_to_lock-) 
 		printf("%x\t%x\t%d\n", lock, eip, @count(eip_to_lock[lock, eip]))
 	print ("# lhp-reschedipi\n")
-        foreach ([depth, eip1, eip2, eip3, eip4] in lhp_after_resched_ipi-) {
-                printf ("%d\t%x\t%x\t%x\t%x\t%d\t%d\n", 
-				depth, eip1, eip2, eip3, eip4,
-				@count(lhp_after_resched_ipi[depth, eip1, eip2, eip3, eip4]), 
-				@avg(lhp_after_resched_ipi[depth, eip1, eip2, eip3, eip4])) 
-		print (@hist_log(lhp_after_resched_ipi[depth, eip1, eip2, eip3, eip4]))
+        foreach ([depth, eip1, eip2, eip3, eip4, caller_info] in lhp_after_resched_ipi-) {
+                printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\n", 
+				depth, eip1, eip2, eip3, eip4, 
+				@count(lhp_after_resched_ipi[depth, eip1, eip2, eip3, eip4, caller_info]),
+				caller_info) 
+		print (@hist_log(lhp_after_resched_ipi[depth, eip1, eip2, eip3, eip4, caller_info]))
 	}
 	print ("# reschedipi\n")
 	foreach ([pid+] in nr_resched_ipi) {
