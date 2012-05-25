@@ -3,7 +3,7 @@
 $filter_str = @ARGV ? shift(@ARGV) : "";
 
 ####### configurable parameters
-$max_lh_id = 6;
+$max_lh_id = 10;
 $thresh_lhp_per_sec = 20;
 
 @res_files = `ls *$filter_str.result`;

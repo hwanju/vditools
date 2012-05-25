@@ -1,0 +1,7 @@
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+cpulist=`grep processor /proc/cpuinfo | awk '{print $3}'`
+for i in $cpulist; do 
+        /root/cpulimit/cpubound &
+done

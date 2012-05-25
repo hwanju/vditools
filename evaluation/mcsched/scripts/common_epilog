@@ -1,0 +1,36 @@
+for path in ${GROUP_PATH[@]}
+do
+	/bin/echo 0 > $path/cpu.balsched
+done
+
+# per-thread stat
+for vm_tid in ${VM_TID[@]}
+do
+        tid=`echo $vm_tid | cut -d. -f2`
+        echo end_time=`date '+%s'` >> /tmp/$vm_tid
+        cat /proc/$tid/stat >> /tmp/$vm_tid 2>/dev/null
+        cat /proc/$tid/sched >> /tmp/$vm_tid 2>/dev/null
+done
+
+echo end_time=`date '+%s'` >> /tmp/total.schedstat
+cat /proc/schedstat >> /tmp/total.schedstat
+
+if [ -e /sys/module/kvm/parameters/trace_lock_holder ]; then
+	echo 0 > /sys/module/kvm/parameters/trace_lock_holder
+	echo 0 > /sys/module/kvm/parameters/trace_lock_holder_tgid
+fi
+
+killall -9 pidstat
+
+# perf
+killall -INT perf
+
+# stapio
+killall -15 stapio
+
+# vmexit stat
+echo -n > /tmp/kvm.exits
+for e in $exit_list; do
+	val=`cat /sys/kernel/debug/$e`
+	echo $e $(( $val - ${exit_count[$e]} )) >> /tmp/kvm.exits
+done

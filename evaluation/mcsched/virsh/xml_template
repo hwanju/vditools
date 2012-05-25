@@ -1,0 +1,40 @@
+<domain type='kvm' xmlns:qemu=>
+  <name></name>
+  <uuid></uuid>
+  <memory></memory>
+  <currentMemory></currentMemory>
+  <vcpu></vcpu>
+  <os>
+    <type arch=>hvm</type>
+  </os>
+  <features>
+    <acpi/>
+    <pae/>
+  </features>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' cache='none'/>
+      <source file=/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <bridge name="virbr0" stp="off" delay="5" />
+    <interface type='ethernet'>
+      <mac address=/>
+      <model type='virtio'/>
+    </interface>
+    <input type='tablet' bus='usb'/>
+    <input type='mouse' bus='ps2'/>
+    <graphics type='spice' listen= port= />
+    <sound model='ac97'/>
+    <video>
+      <model type='qxl' vram='65536' heads='1'/>
+    </video>
+    <memballoon model='virtio'/>
+  </devices>
+</domain>
+

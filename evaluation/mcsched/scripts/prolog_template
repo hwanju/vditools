@@ -1,0 +1,50 @@
+BALSCHED=
+IMBALANCE=
+
+CPUCTL_ROOT="/cpuctl"
+GROUP_PATH=()
+GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8 g9 g10)
+VM_LIST=(ubuntu1104-1 ubuntu1104-2 ubuntu1104-3 ubuntu1104-4 ubuntu1104-5 ubuntu1104-6 ubuntu1104-7 ubuntu1104-8 win7-1 win7-2)
+VM_PID=()
+
+/bin/echo $IMBALANCE > /proc/sys/kernel/balsched_load_imbalance_pct
+
+echo 0 > /sys/kernel/mm/ksm/run
+echo 2 > /sys/kernel/mm/ksm/run
+
+i=0
+j=0
+for gname in ${GROUP_NAME[@]}
+do
+	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
+	/bin/echo 65536 > ${GROUP_PATH[i]}/cpu.shares
+	/bin/echo $BALSCHED > ${GROUP_PATH[i]}/cpu.balsched
+
+	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
+        if [ "$pid" != "" ]; then
+                /bin/echo $pid > ${GROUP_PATH[i]}/cgroup.procs
+                VM_PID[i]=$pid
+
+                # per-thread stat
+                rm -f /tmp/$gname.*
+                for tid in `ls /proc/$pid/task/`
+                do
+                        echo start_time=`date '+%s'` > /tmp/$gname.$tid
+                        cat /proc/$tid/stat >> /tmp/$gname.$tid
+                        cat /proc/$tid/sched >> /tmp/$gname.$tid
+                        VM_TID[j]=$gname.$tid
+                        let j=j+1
+                done
+        fi
+
+	let i=i+1
+done
+
+echo start_time=`date '+%s'` > /tmp/total.schedstat
+cat /proc/schedstat >> /tmp/total.schedstat
+pidstat -C kvm -u -I -r -d -w -h 5 > /tmp/pidstat.log &
+# vmexit stat
+exit_list=`ls /sys/kernel/debug/*exits | sed 's/\/sys\/kernel\/debug\///g'`
+for e in $exit_list; do
+	exit_count[$e]=`cat /sys/kernel/debug/$e`
+done

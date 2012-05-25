@@ -1,0 +1,4 @@
+debug_module=/root/mcsched_debug.ko
+if [ -e $debug_module ]; then
+	staprun $debug_module > /tmp/kvm.debug &
+fi

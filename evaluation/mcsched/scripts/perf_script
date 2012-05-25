@@ -1,0 +1,4 @@
+# perf
+ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
+ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -a -o /tmp/kvm.perf.data &

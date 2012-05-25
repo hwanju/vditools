@@ -1,0 +1,6 @@
+if [ -e /sys/module/kvm/parameters/trace_lock_holder -a -e /root/scripts/systemtap/trace_lock_holder.ko ]; then
+	echo 1 > /sys/module/kvm/parameters/trace_lock_holder
+	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
+	echo $pid > /sys/module/kvm/parameters/trace_lock_holder_tgid
+	staprun /root/scripts/systemtap/trace_lock_holder.ko > /tmp/lh.result &
+fi

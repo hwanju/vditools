@@ -1,0 +1,3 @@
+if [ -e /root/mcsched_prof.ko ]; then
+	staprun /root/mcsched_prof.ko > /tmp/kvm.prof &
+fi

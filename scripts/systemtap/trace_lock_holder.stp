@@ -1,8 +1,9 @@
 #!/usr/bin/stap -v
 
 global lhp_eip
-global lhipi_eip
-global eip_to_lock
+global lhp_cur_eip
+//global lhipi_eip
+//global eip_to_lock
 global resched_xmit_time
 global nr_resched_ipi
 global monitored_pid
@@ -20,46 +21,51 @@ probe kernel.trace("kvm_apic_ipi") {
 	}
 }
 
-probe module("kvm").function("kvm_get_lock_holder").return {
-	if ($return) {
-		if ($point_flag == 0x01 
-		    && !$p->se->urgent && $p->on_rq) {	/* involuntary preemption */
-			caller_info = $caller_info
-			//if ($p->se->urgent)
-			//	caller_info |= 0x10
-			lhp_eip[$vcpu->arch->lh->lock_holder->depth, 
-				$vcpu->arch->lh->lock_holder->eip[0], 
-				$vcpu->arch->lh->lock_holder->eip[1], 
-				$vcpu->arch->lh->lock_holder->eip[2], 
-				$vcpu->arch->lh->lock_holder->eip[3], 
-				caller_info] <<< 1 
-			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[0], $vcpu->arch->lh->lock_holder->lock[0]] <<< 1
-			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[1], $vcpu->arch->lh->lock_holder->lock[1]] <<< 1
-			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[2], $vcpu->arch->lh->lock_holder->lock[2]] <<< 1
-			eip_to_lock[$vcpu->arch->lh->lock_holder->eip[3], $vcpu->arch->lh->lock_holder->lock[3]] <<< 1
+////global debug
+////probe begin {
+////	debug = 0
+////}
+////probe module("kvm").function("kvm_get_lock_holder") {
+////	if (debug < 50 && $guest_ip == 0xffffffff810359f1) {
+////		print("DEBUG\n");
+////		print_backtrace()
+////		debug++
+////	}
+////}
 
-			//resched_time = resched_xmit_time[tid()]
-			resched_time = resched_xmit_time[$p->pid]
-			if ($vcpu->arch->lh->lock_holder->depth > 0) { 	/* lhp */
-				if (resched_time > 0)	/* resched ipi sent during the last timeslice */
-					lhp_after_resched_ipi[$vcpu->arch->lh->lock_holder->depth, 
-						$vcpu->arch->lh->lock_holder->eip[0], 
-						$vcpu->arch->lh->lock_holder->eip[1], 
-						$vcpu->arch->lh->lock_holder->eip[2], 
-						$vcpu->arch->lh->lock_holder->eip[3],
-						caller_info] <<< (gettimeofday_us() - resched_time)
-			}
-			monitored_pid[pid()] = 1
+probe kernel.trace("kvm_lock_holder") {
+	if ($point_flag == 0x01 
+	    && !$p->se->urgent && $p->on_rq) {	/* involuntary preemption */
+		lhp_eip[$depth, $eip1, $eip2, $eip3, $eip4, $caller_info] <<< 1 
+		if ($depth) 
+			lhp_cur_eip[$depth, $eip1, $eip2, $eip3, $eip4, $guest_ip, $user_mode] <<< 1 
+
+/*
+		eip_to_lock[$eip1, $vcpu->arch->lh->lock_holder->lock[0]] <<< 1
+		eip_to_lock[$eip2, $vcpu->arch->lh->lock_holder->lock[1]] <<< 1
+		eip_to_lock[$eip3, $vcpu->arch->lh->lock_holder->lock[2]] <<< 1
+		eip_to_lock[$eip4, $vcpu->arch->lh->lock_holder->lock[3]] <<< 1
+*/
+
+		resched_time = resched_xmit_time[tid()]
+		resched_time = resched_xmit_time[$p->pid]
+		if ($depth > 0) { 	/* lhp */
+			if (resched_time > 0)	/* resched ipi sent during the last timeslice */
+				lhp_after_resched_ipi[$depth, $eip1, $eip2, $eip3, $eip4,
+					$caller_info] <<< (gettimeofday_us() - resched_time)
 		}
-		else if ($point_flag == 0x02) {	/* resched ipi sent */
-			lhipi_eip[$vcpu->arch->lh->lock_holder->depth, 
-				$vcpu->arch->lh->lock_holder->eip[0], 
-				$vcpu->arch->lh->lock_holder->eip[1], 
-				$vcpu->arch->lh->lock_holder->eip[2], 
-				$vcpu->arch->lh->lock_holder->eip[3], 
-				$caller_info] <<< 1 
-		}
+		monitored_pid[pid()] = 1
 	}
+	/*
+	else if ($point_flag == 0x02) {	// resched ipi sent
+		lhipi_eip[$depth, 
+			$eip1, 
+			$eip2, 
+			$eip3, 
+			$eip4, 
+			$caller_info] <<< 1 
+	}
+	*/
 }
 
 probe end {
@@ -70,6 +76,14 @@ probe end {
 			@count(lhp_eip[depth, eip1, eip2, eip3, eip4, caller_info]), 
 			caller_info)
         }
+	print ("# lhp_cur_eip\n")
+        foreach ([depth, eip1, eip2, eip3, eip4, guest_ip, user_mode] in lhp_cur_eip-) {
+                printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\t%d\n", 
+			depth, eip1, eip2, eip3, eip4, 
+			@count(lhp_cur_eip[depth, eip1, eip2, eip3, eip4, guest_ip, user_mode]), 
+			guest_ip, user_mode)
+        }
+	/*
 	print ("# lhipi\n")
         foreach ([depth, eip1, eip2, eip3, eip4, caller_info] in lhipi_eip-) {
                 printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\n", 
@@ -80,6 +94,7 @@ probe end {
 	print ("# eip-to-lock\n")
 	foreach ([lock, eip] in eip_to_lock-) 
 		printf("%x\t%x\t%d\n", lock, eip, @count(eip_to_lock[lock, eip]))
+	*/
 	print ("# lhp-reschedipi\n")
         foreach ([depth, eip1, eip2, eip3, eip4, caller_info] in lhp_after_resched_ipi-) {
                 printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\n", 
