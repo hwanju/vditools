@@ -1,7 +1,10 @@
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
 NUM_THREADS=8
 
 cd ~/linux-3.1.6
 
-/usr/bin/time -v make -j8  1> /dev/null 2> /tmp/result
+/usr/bin/time -v make -j$NUM_THREADS  1> /dev/null 2> /tmp/result
 
 cat /tmp/result | TO_HOST

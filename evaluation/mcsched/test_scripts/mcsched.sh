@@ -2,8 +2,10 @@
 
 if [ "$parsec_workloads" == "" ]; then
 	parsec_workloads="blackscholes bodytrack canneal dedup facesim ferret fluidanimate freqmine raytrace streamcluster swaptions vips x264"
+elif [ "$parsec_workloads" == "major" ]; then
+	parsec_workloads="bodytrack canneal dedup facesim ferret fluidanimate raytrace streamcluster vips swaptions"
 fi
-avail_mode_list="baseline purebal purebal_mig fairbal_pct0 fairbal_pct110 fairbal_pct100"
+avail_mode_list="baseline purebal purebal_mig fairbal_pct0 fairbal_pct150 fairbal_pct100"
 
 if [ $# -le 1 ]; then
         echo "Usage: $0 <workload format> <mode list: $avail_mode_list all>"
