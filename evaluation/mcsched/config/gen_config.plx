@@ -106,6 +106,11 @@ for ($i = 0 ; $i < $nr_guest ; $i++) {
 }
 print OFD "]\n";
 
-print OFD "trace_guests = []\n";
+print OFD "trace_guests = [";
+for ($i = 0 ; $i < $conf{'NR_TRACE_GUEST'}; $i++) {
+	print OFD ", " unless $i == 0;
+	print OFD "'$guest_name[$i]'";
+}
+print OFD "]\n";
 print OFD "dist = [os.path.normpath(sys.modules[__name__].__file__ + '/../dist')]\n";
 

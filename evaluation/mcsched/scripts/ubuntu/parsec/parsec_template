@@ -19,12 +19,23 @@ if [ -e /proc/lock_stat ]; then
         echo 0 > /proc/lock_stat
 fi
 
+# check and run futex profiling
+if [ -e /root/futex_prof.ko ]; then
+	procname=$PACKAGE
+	if [ "$PACKAGE" == "raytrace" ]; then
+		procname=rtview
+	fi
+	echo "futex_wait_stat" > /tmp/futex_prof.log
+	staprun /root/futex_prof.ko | grep $procname >> /tmp/futex_prof.log &
+fi
+
 echo "start_stat" > /tmp/stat.log
 cat /proc/stat >> /tmp/stat.log
 echo start_time=`date '+%s'` > /tmp/schedstat.log
 cat /proc/schedstat >> /tmp/schedstat.log
 
-bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v" > /tmp/result
+# WORKLOAD RUN
+FUTEX_DEBUG=1 bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v" > /tmp/result
 
 echo "end_stat" >> /tmp/stat.log
 cat /proc/stat >> /tmp/stat.log
@@ -37,6 +48,12 @@ if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
         find /sys/kernel/debug/kvm/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
 fi
 
+# finish futex profiling if needed
+killall -15 stapio
+if [ -e /root/futex_prof.ko ]; then
+	sleep 5		# wait for ending profiling
+fi
+
 # merge result
 cat /tmp/result > /tmp/parsec.result
 if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
@@ -47,5 +64,6 @@ if [ -e /proc/lock_stat ]; then
 fi
 cat /tmp/stat.log >> /tmp/parsec.result
 cat /tmp/schedstat.log >> /tmp/parsec.result
+cat /tmp/futex_prof.log >> /tmp/parsec.result
 
 cat /tmp/parsec.result | TO_HOST

@@ -1,4 +1,5 @@
 all:
+	./gen_config.plx 1ubuntu1104 eval_config -mcsched
 	./gen_config.plx 2ubuntu1104 eval_config -mcsched
 	./gen_config.plx 2ubuntu1104 eval_config -mcsched-lockstat
 	./gen_config.plx 5ubuntu1104 eval_config -mcsched
