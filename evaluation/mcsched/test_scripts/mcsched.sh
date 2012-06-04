@@ -41,8 +41,9 @@ for workload in $workload_list; do
 
 		if [ -e $workload_path ]; then
 			./test_scripts/wipe.sh
-			echo "./skbench.py -w $workload_path start-stop | tee $resdir/$workload_name.result"
-			./skbench.py -w $workload_path start-stop | tee $resdir/$workload_name.result
+			cmd="./skbench.py -w $workload_path start-stop | tee $resdir/$workload_name.result"
+			echo $cmd
+			$cmd
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat
 			mv /tmp/pidstat.log $resdir/$workload_name.pidstat
 			mkdir -p $resdir/$workload_name.threadinfo

@@ -73,6 +73,12 @@ import sys
 print OFD "gateway = '$conf{'GATEWAY'}'\n";
 print OFD "netmask = '$conf{'NETMASK'}'\n";
 print OFD "mount_point = '$conf{'GUEST_MNT_POINT'}'\n";
+print OFD "guest_list = [";
+for ($i = 0 ; $i < $nr_guest; $i++) {
+	print OFD ", " unless $i == 0;
+	print OFD "'$guest_name[$i]'";
+}
+print OFD "]\n";
 print OFD "guests_image_map= {\n";
 for ($i = 0 ; $i < $nr_guest ; $i++) {
 	print OFD "\t'$guest_name[$i]': '$conf{'GUEST_IMAGE_DIR'}/$guest_img_name[$i].qcow2',\n";
@@ -98,13 +104,6 @@ for ($i = 0 ; $i < $nr_guest ; $i++) {
 	print OFD "\t'$guest_name[$i]': '$conf{'GUEST_BITNESS'}',\n";
 }
 print OFD "}\n";
-
-print OFD "normal_guests = [";
-for ($i = 0 ; $i < $nr_guest ; $i++) {
-	print OFD ", " unless $i == 0;
-	print OFD "'$guest_name[$i]'";
-}
-print OFD "]\n";
 
 print OFD "trace_guests = [";
 for ($i = 0 ; $i < $conf{'NR_TRACE_GUEST'}; $i++) {
