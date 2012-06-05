@@ -50,9 +50,9 @@ for workload in $workload_list; do
 			if [ "$(echo $interactive_workloads | grep $workload)" != "" ]; then	# simple membership test
 				opt="-t"	# trace option
 			fi
-			cmd="./skbench.py $opt -w $workload_path start-stop | tee $resdir/$workload_name.result"
+			cmd="./skbench.py $opt -w $workload_path start-stop"
 			echo $cmd
-			$cmd
+			$cmd | tee $resdir/$workload_name.result
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat
 			mv /tmp/pidstat.log $resdir/$workload_name.pidstat
 			mkdir -p $resdir/$workload_name.threadinfo
