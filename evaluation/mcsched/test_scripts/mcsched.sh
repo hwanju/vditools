@@ -38,7 +38,7 @@ mkdir -p $resdir
 for workload in $workload_list; do 
 	for mode in $mode_list; do 
 		workload_name=$(echo $workload_format | sed "s/parsec/$workload/g")
-		workload_name=$(echo $workload_format | sed "s/interactive/$workload/g")
+		workload_name=$(echo $workload_name | sed "s/interactive/$workload/g")
 		workload_name=$workload_name@$mode
 		workload_path=workloads/mcsched/$workload_name
 
