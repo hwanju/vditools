@@ -1,0 +1,32 @@
+CLIENT_HOME=
+CLIENT_TRACE_DIR=
+WORKLOAD=
+THINK_TIME_MS=
+NR_ITER=
+
+export DISPLAY=:0
+export XAUTHORITY=$CLIENT_HOME/.Xauthority
+
+host_addr=$IP_HOST	# from skbench.py
+trace_dir=$CLIENT_HOME/$TRACE_DIR/traces
+latency_dir=$CLIENT_HOME/$TRACE_DIR/latency
+out_dir=$CLIENT_HOME/$TRACE_DIR/out
+prolog_workload=${WORKLOAD}_prolog
+
+mkdir -p $latency_dir
+mkdir -p $out_dir
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+if [ "$prolog_workload" != "" ]; then
+        spicec -h $host_addr -p 6001 -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS --hide > $out_dir/$prolog_workload.out
+fi
+
+i=1
+while [ $i -le $NR_ITER ]
+do
+	spicec -h $host_addr -p 6001 -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2> $latency_dir/$WORKLOAD.latency.$i > $out_dir/$WORKLOAD.out.$i
+	let i=i+1
+        sleep 2
+done

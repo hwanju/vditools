@@ -16,7 +16,7 @@ foreach $m (keys %mode_to_id) {
 	$balsched = $mode_to_id{$m};
 	$imbalance = 0;
 	$imbalance = $1 if ($m =~ /(\d+)/);
-	unlink("${m}_prolog*") if $clean;
+	`rm -f ${m}_prolog*` if $clean;
 	foreach $sm (@submodes) {
 		$prolog = "${m}_prolog.$sm";
 		if ($clean) {

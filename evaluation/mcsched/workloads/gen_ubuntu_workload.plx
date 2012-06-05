@@ -8,9 +8,13 @@ die "Error: $fn aleary exits. Check it!\n" if -e $fn;
 open FD, ">$fn";
 
 @parsec_workloads=qw( blackscholes  bodytrack  canneal  dedup  facesim  ferret  fluidanimate  freqmine  raytrace  streamcluster  swaptions  vips  x264 );
-foreach $p (@parsec_workloads) {
-	$parsec{$p} = 1;
-}
+@interactive_workloads=qw( impress_launch firefox_launch chrome_launch gimp_launch );
+
+# for workload membership
+my %parsec;
+my %interactive;
+@parsec{@parsec_workloads} = ();
+@interactive{@interactive_workloads} = ();
 
 ($workloads, $mode) = split( /@/, $fn );
 $prolog = $epilog = $mode;
@@ -32,7 +36,10 @@ foreach $w (@workload_list) {
         if ($w =~ /(\d+)(\S+)/) {
                 $n = $1;
                 $name = $2;
-                $subdir = $name =~ /Pi/ ? "Pi" : ($parsec{$name} ? "parsec" : "");
+		$subdir = "";
+		if (exists $parsec{$name})		{ $subdir = "parsec" }
+		elsif (exists $interactive{$name})	{ $subdir = "interactive" }
+		elsif ($name =~ /Pi/)			{ $subdir = "Pi" }
                 $name =~ s/Pi_/Pi-/g;
                 $name .= "-536M" if $name eq "Pi-single";       # FIXME
                 print "Warning: ../scripts/ubuntu/$subdir/$name doesn't exist!\n" unless -e "../scripts/ubuntu/$subdir/$name";
