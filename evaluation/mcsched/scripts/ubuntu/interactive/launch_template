@@ -3,6 +3,7 @@ CLIENT_TRACE_DIR=
 WORKLOAD=
 THINK_TIME_MS=
 NR_ITER=
+SPICE_PORT=
 
 export DISPLAY=:0
 export XAUTHORITY=$CLIENT_HOME/.Xauthority
@@ -19,14 +20,18 @@ mkdir -p $out_dir
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
+### WORKLOAD_NAME is replaced by skbench ###
+
 if [ "$prolog_workload" != "" ]; then
-        spicec -h $host_addr -p 6001 -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS --hide > $out_dir/$prolog_workload.out
+        spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS --hide > $out_dir/WORKLOAD_NAME.prolog.out
 fi
 
 i=1
+echo -n > $latency_dir/WORKLOAD_NAME.latency
+echo -n > $out_dir/WORKLOAD_NAME.out
 while [ $i -le $NR_ITER ]
 do
-	spicec -h $host_addr -p 6001 -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2> $latency_dir/$WORKLOAD.latency.$i > $out_dir/$WORKLOAD.out.$i
+	spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2>> $latency_dir/WORKLOAD_NAME.latency >> $out_dir/WORKLOAD_NAME.out
 	let i=i+1
         sleep 2
 done

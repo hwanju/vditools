@@ -1,9 +1,8 @@
 #!/bin/bash
 
-if [ "$parsec_workloads" == "" ]; then
-	parsec_workloads="blackscholes bodytrack canneal dedup facesim ferret fluidanimate freqmine raytrace streamcluster swaptions vips x264"
-elif [ "$parsec_workloads" == "major" ]; then
-	parsec_workloads="bodytrack canneal dedup facesim ferret fluidanimate raytrace streamcluster vips swaptions"
+if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" ]; then
+	source workloads/mcsched/workloads.inc
+	#parsec_workloads="blackscholes bodytrack canneal dedup facesim ferret fluidanimate freqmine raytrace streamcluster swaptions vips x264"
 fi
 avail_mode_list="baseline purebal purebal_mig fairbal_pct0 fairbal_pct150 fairbal_pct100"
 
@@ -19,6 +18,9 @@ fi
 workload_format=$1
 if [ $(echo $workload_format | grep parsec) ]; then
 	workload_list=$parsec_workloads
+	resdir=results/mcsched/_$workload_format
+elif [ $(echo $workload_format | grep interactive) ]; then
+	workload_list=$interactive_workloads
 	resdir=results/mcsched/_$workload_format
 else
 	workload_list=dummy
@@ -36,12 +38,19 @@ mkdir -p $resdir
 for workload in $workload_list; do 
 	for mode in $mode_list; do 
 		workload_name=$(echo $workload_format | sed "s/parsec/$workload/g")
+		workload_name=$(echo $workload_format | sed "s/interactive/$workload/g")
 		workload_name=$workload_name@$mode
 		workload_path=workloads/mcsched/$workload_name
 
 		if [ -e $workload_path ]; then
 			./test_scripts/wipe.sh
-			cmd="./skbench.py -w $workload_path start-stop | tee $resdir/$workload_name.result"
+
+			# additional option
+			opt=""
+			if [ "$(echo $interactive_workloads | grep $workload)" != "" ]; then	# simple membership test
+				opt="-t"	# trace option
+			fi
+			cmd="./skbench.py $opt -w $workload_path start-stop | tee $resdir/$workload_name.result"
 			echo $cmd
 			$cmd
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat

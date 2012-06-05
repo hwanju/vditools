@@ -2,6 +2,7 @@
 
 # default path
 $eval_conf_fn = "../../../config/eval_config";
+$guest_conf_fn = "../../../virsh/guest_config";
 $templ = "launch_template";
 
 @interactive_workloads=qw( impress firefox chrome gimp );
@@ -27,6 +28,13 @@ unless ($clean) {
 		$conf{$f[0]} = $f[1];
 	}
 	close FD;
+	die "$guest_conf_fn doesn't exist. You MUST create $guest_conf_fn based on guest_config.example (Don't touch guest_config.example itself!)\n" if ! -e $guest_conf_fn;
+	open FD, "$guest_conf_fn";
+	while(<FD>) {
+		@f = split(/\s+/);
+		$conf{$f[0]} = $f[1];
+	}
+	close FD;
 }
 
 open FD, $templ or die "file open error: $templ\n" unless $clean;
@@ -44,6 +52,7 @@ foreach $p (@interactive_workloads) {
 		s/^(WORKLOAD=)/$1$workload/g;
 		s/^(THINK_TIME_MS=)/$1$think_time_ms/g;
 		s/^(NR_ITER=)/$1$nr_iter/g;
+		s/^(SPICE_PORT=)/$1$conf{'SPICE_PORT_BASE'}/g;
 
 		print OFD "$_";
 	}
