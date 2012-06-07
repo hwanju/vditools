@@ -48,6 +48,9 @@ while(<FD>) {
 }
 close FD;
 
+# can override MC via environment variable
+$conf{'MC'} = $ENV{MC} ? 'Y' : 'N' if defined($ENV{MC});
+
 open FD, "$eval_conf_fn";
 while(<FD>) {
 	@f = split(/\s+/);

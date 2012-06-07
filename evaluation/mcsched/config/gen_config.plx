@@ -2,13 +2,12 @@
 
 if (@ARGV < 2) {
 	print "$0 <guest VM format> <eval_config file> [postfix]\n";
-	print "\tguest VM format := NV | VC
+	print "\tguest VM format F := G | F+F
+			G := NV
 			N := <# of VMs>
 			V := <VM name>
-			C := +VC | e
-		(e means epsilon (or null))
 		e.g., $0 5ubuntu1104
-		      $0 win7+ubuntu1104-1+ubuntu1104-2)
+		      $0 1win7+3ubuntu1104)
 		      
 		postfix is for guest names for images and configs\n";
 	exit;
@@ -21,29 +20,20 @@ die "$eval_conf_fn doesn't exist. You MUST create $eval_conf_fn based on eval_co
 
 $config_fn = "config_$vm_format$postfix.py";
 
-if ($vm_format =~ /^(\d+)(\w+)/) {
-	$nr_vm = $1;
-	$name = $2;
-	for $i (1 .. $nr_vm) {
-		$guest_name[$i-1] = "${name}-$i";
-		$guest_img_name[$i-1] = "${name}${postfix}-$i";
-	}
-}
-else {
-	@guest_name = split(/\+/, $vm_format);
-	if ($postfix ne "") {
-		$i = 0;
-		for $name (@guest_name) {
-			if ($name =~ /-\d+$/) {
-				$name =~ s/-(\d+)$/$postfix-$1/g;
-			}
-			else {
-				$name .= $postfix;
-			}
-			$guest_img_name[$i++] = $name;
+@guest_grps = split(/\+/, $vm_format);
+$i = 1;
+foreach $guest_grp(@guest_grps) {
+	if ($guest_grp =~ /(\d+)(\w+)/) {
+		$nr_vm = $1;
+		$name = $2;
+		for (1 .. $nr_vm) {
+			$guest_name[$i-1] = "${name}-$i";
+			$guest_img_name[$i-1] = "${name}${postfix}-$i";
+			$i++;
 		}
 	}
 }
+
 $nr_guest = int(@guest_name);
 die "Error: format is invalid!\n" unless $nr_guest > 0;
 
@@ -65,8 +55,7 @@ close FD;
 
 #generate config
 open OFD, ">$config_fn" or die "file open error: $config_fn\n";
-print OFD '
-import os
+print OFD 'import os
 import sys
 
 ';
