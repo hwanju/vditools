@@ -23,7 +23,8 @@ elif [ $(echo $workload_format | grep interactive) ]; then
 	workload_list=$interactive_workloads
 	resdir=results/mcsched/_$workload_format
 else
-	workload_list=dummy
+	workload_list=$(echo $workload_format | sed 's/+.*//g')
+	workload_list=$(echo $workload_list | sed 's/^[0-9]*//g')
 	resdir=results/mcsched
 fi
 

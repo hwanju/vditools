@@ -32,7 +32,6 @@ for i in $*; do
     rm -f $clone_img_path
     qemu-img create -b $img_dir/$base_img -f qcow2 $clone_img_path
     if [ "$guest_name" == "win7_64bit" ]; then
-	    echo "$guest_name"
 	    continue
     fi
     guest_ip=${guest_ips[$(( $i - 1 ))]}

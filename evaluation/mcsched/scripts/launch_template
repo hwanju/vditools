@@ -17,14 +17,17 @@ prolog_workload=${WORKLOAD}_prolog
 mkdir -p $latency_dir
 mkdir -p $out_dir
 
-SEND_READY_SIGNAL
-WAIT_START_SIGNAL
+WAIT_BOOT_SIGNAL
+
+sleep 20	# wait for householding after boot
 
 ### WORKLOAD_NAME is replaced by skbench ###
-
 if [ "$prolog_workload" != "" ]; then
         spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS --hide > $out_dir/WORKLOAD_NAME.prolog.out
 fi
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
 
 i=1
 echo -n > $latency_dir/WORKLOAD_NAME.latency
