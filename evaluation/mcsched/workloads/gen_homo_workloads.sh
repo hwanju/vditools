@@ -13,6 +13,6 @@ fi
 
 for parsec in $parsec_workloads $interactive_workloads $other_workloads; do
         for mode in $modes; do 
-                ./gen_ubuntu_workload.plx ${nr_workloads}${parsec}${postfix}@$mode $postfix
+                ./gen_workload.plx ${nr_workloads}${parsec}${postfix}@$mode $postfix
         done
 done

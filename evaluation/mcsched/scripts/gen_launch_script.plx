@@ -1,11 +1,13 @@
 #!/usr/bin/perl -w
 
 # default path
-$eval_conf_fn = "../../../config/eval_config";
-$guest_conf_fn = "../../../virsh/guest_config";
+$eval_conf_fn = "../config/eval_config";
+$guest_conf_fn = "../virsh/guest_config";
 $templ = "launch_template";
 
-@interactive_workloads=qw( impress firefox chrome gimp );
+@ubuntu_workloads  = qw( impress firefox chrome gimp );
+@windows_workloads = qw( powerpoint );
+for (@ubuntu_workloads)  { $is_ubuntu_workload{$_} = 1 }
 
 if (@ARGV == 1 && $ARGV[0] eq "-c") {
 	$clean = 1;
@@ -38,14 +40,15 @@ unless ($clean) {
 }
 
 open FD, $templ or die "file open error: $templ\n" unless $clean;
-foreach $p (@interactive_workloads) {
+foreach $p (@ubuntu_workloads, @windows_workloads) {
 	$workload = $p . "_launch";
+	$subdir = $is_ubuntu_workload{$p} ? "ubuntu/interactive" : "windows/interactive";
 	if ($clean) {
-		`rm -f $workload`;
+		`rm -f $subdir/$workload`;
 		next;
 	}
         seek (FD, 0, 0);
-        open OFD, ">$workload";
+        open OFD, ">$subdir/$workload";
 	while(<FD>) {
 		s/^(CLIENT_HOME=)/$1$conf{'CLIENT_HOME'}/g;
 		s/^(CLIENT_TRACE_DIR=)/$1$conf{'CLIENT_TRACE_DIR'}/g;

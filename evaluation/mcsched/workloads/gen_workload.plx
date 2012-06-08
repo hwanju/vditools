@@ -8,13 +8,16 @@ die "Error: $fn aleary exits. Check it!\n" if -e $fn;
 open FD, ">$fn";
 
 @parsec_workloads=qw( blackscholes  bodytrack  canneal  dedup  facesim  ferret  fluidanimate  freqmine  raytrace  streamcluster  swaptions  vips  x264 );
-@interactive_workloads=qw( impress_launch firefox_launch chrome_launch gimp_launch );
+@ubuntu_workloads=qw( impress_launch firefox_launch chrome_launch gimp_launch );
+@windows_workloads=qw( powerpoint_launch );
 
 # for workload membership
 my %parsec;
-my %interactive;
+my %ubuntu;
+my %windows;
 @parsec{@parsec_workloads} = ();
-@interactive{@interactive_workloads} = ();
+@ubuntu{@ubuntu_workloads} = ();
+@windows{@windows_workloads} = ();
 
 ($workloads, $mode) = split( /@/, $fn );
 $prolog = $epilog = $mode;
@@ -37,14 +40,20 @@ foreach $w (@workload_list) {
                 $n = $1;
                 $name = $2;
 		$subdir = "";
-		if (exists $parsec{$name})		{ $subdir = "parsec" }
-		elsif (exists $interactive{$name})	{ $subdir = "interactive" }
-		elsif ($name =~ /Pi/)			{ $subdir = "Pi" }
+		if (exists $parsec{$name})		{ $subdir = "ubuntu/parsec" }
+		elsif (exists $ubuntu{$name})		{ $subdir = "ubuntu/interactive" }
+		elsif (exists $windows{$name})		{ $subdir = "windows/interactive" }
+		elsif ($name =~ /Pi/)			{ $subdir = "ubuntu/Pi" }
+		else					{ $subdir = "ubuntu" }
+
+		# Pi-specific
                 $name =~ s/Pi_/Pi-/g;
                 $name .= "-536M" if $name eq "Pi-single";       # FIXME
-                print "Warning: ../scripts/ubuntu/$subdir/$name doesn't exist!\n" unless -e "../scripts/ubuntu/$subdir/$name";
+
+		$script_path = "../scripts/$subdir/$name";
+                print "Warning: $script_path doesn't exist!\n" unless -e $script_path;
                 foreach (1 .. $n) {
-                        print FD "\t'$script_dir/ubuntu/$subdir/$name',\n";
+                        print FD "\t'$script_dir/$subdir/$name',\n";
                 }
 
         }
