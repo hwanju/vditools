@@ -1,6 +1,6 @@
 #!/bin/sh
-if [ $# -eq 0 ]; then
-        echo "Usage: $0 <ubuntu vm id1 id2 ...>"
+if [ $# -lt 2 ]; then
+	echo "Usage: $0 <guest name (ubuntu1104|win7_64bit)> <id1 id2 ...>"
         exit
 fi
 clone_postfix=""
@@ -11,11 +11,12 @@ else
         clone_postfix=$BASE_POSTFIX
 fi
 
+guest_name=$1
+shift
+
 img_dir=/guest_images
-#base_img=ubuntu1104-small.qcow2
-#clone_prefix=ubuntu1104-small-
-base_img=ubuntu1104-apps$BASE_POSTFIX.qcow2
-clone_prefix=ubuntu1104
+base_img=$guest_name-apps$BASE_POSTFIX.qcow2
+clone_prefix=$guest_name
 host_prefix=cag
 guest_ips=( 143.248.92.95 143.248.92.96 143.248.92.97 143.248.92.98 143.248.92.196 143.248.92.201 143.248.92.202 143.248.92.102 143.248.92.103 143.248.92.104 )
 guest_gateway=143.248.92.1
@@ -30,6 +31,10 @@ for i in $*; do
     clone_img_path=$img_dir/${clone_prefix}${clone_postfix}-${i}.qcow2
     rm -f $clone_img_path
     qemu-img create -b $img_dir/$base_img -f qcow2 $clone_img_path
+    if [ "$guest_name" == "win7_64bit" ]; then
+	    echo "$guest_name"
+	    continue
+    fi
     guest_ip=${guest_ips[$(( $i - 1 ))]}
     qemu-nbd -c /dev/nbd0 $clone_img_path
     sleep 3
