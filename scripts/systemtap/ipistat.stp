@@ -17,18 +17,18 @@ probe begin {
         shorthand_name[3] = "all-but-self";
 }
 
-probe kernel.function("list_add_ipi_pending") {
-        src_tid = tid()
-        dst_tid = $p->pid
-        if ([src_tid] in vcpu_list && [dst_tid] in vcpu_list) {
-                src_vcpu_id = vcpu_list[src_tid]
-                dst_vcpu_id = vcpu_list[dst_tid]
-                ipi[src_vcpu_id, dst_vcpu_id]++
-
-                if (vcpu_shorthand[src_vcpu_id] == 0 && vcpu_dest_id[src_vcpu_id] != 254 && vcpu_dest_id[src_vcpu_id] != src_vcpu_id)
-                        dst_ipi[src_vcpu_id, dst_vcpu_id]++
-        }
-}
+//probe kernel.function("list_add_ipi_pending") {
+//        src_tid = tid()
+//        dst_tid = $p->pid
+//        if ([src_tid] in vcpu_list && [dst_tid] in vcpu_list) {
+//                src_vcpu_id = vcpu_list[src_tid]
+//                dst_vcpu_id = vcpu_list[dst_tid]
+//                ipi[src_vcpu_id, dst_vcpu_id]++
+//
+//                if (vcpu_shorthand[src_vcpu_id] == 0 && vcpu_dest_id[src_vcpu_id] != 254 && vcpu_dest_id[src_vcpu_id] != src_vcpu_id)
+//                        dst_ipi[src_vcpu_id, dst_vcpu_id]++
+//        }
+//}
 
 probe kernel.trace("kvm_apic_ipi") {
         sh = $icr_low >> 18 & 0x3
@@ -46,14 +46,14 @@ probe module("kvm").function("kvm_arch_vcpu_load") {
     vcpu_list[tid()] = $vcpu->vcpu_id
 }
 
-probe timer.ms(1000) {
-        curr_in_ms += 1000
-        foreach ([src_vcpu_id, dst_vcpu_id] in dst_ipi-) {
-                printf("%d->%d: %d\n", src_vcpu_id, dst_vcpu_id, dst_ipi[src_vcpu_id, dst_vcpu_id])
-        }
-        delete dst_ipi
-        print("\n")
-}
+//probe timer.ms(1000) {
+//        curr_in_ms += 1000
+//        foreach ([src_vcpu_id, dst_vcpu_id] in dst_ipi-) {
+//                printf("%d->%d: %d\n", src_vcpu_id, dst_vcpu_id, dst_ipi[src_vcpu_id, dst_vcpu_id])
+//        }
+//        delete dst_ipi
+//        print("\n")
+//}
 
 probe end {
         print("\n[IPI shorthand]\n")
