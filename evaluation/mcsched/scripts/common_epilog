@@ -8,8 +8,12 @@ for vm_tid in ${VM_TID[@]}
 do
         tid=`echo $vm_tid | cut -d. -f2`
         echo end_time=`date '+%s'` >> /tmp/$vm_tid
-        cat /proc/$tid/stat >> /tmp/$vm_tid 2>/dev/null
-        cat /proc/$tid/sched >> /tmp/$vm_tid 2>/dev/null
+	if [ -e /proc/$tid ]; then
+		cat /proc/$tid/stat >> /tmp/$vm_tid 2>/dev/null
+        	cat /proc/$tid/sched >> /tmp/$vm_tid 2>/dev/null
+	else
+		rm -f /tmp/$vm_tid
+	fi
 done
 
 echo end_time=`date '+%s'` >> /tmp/total.schedstat
