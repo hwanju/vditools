@@ -2,7 +2,6 @@
 
 if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" ]; then
 	source workloads/mcsched/workloads.inc
-	#parsec_workloads="blackscholes bodytrack canneal dedup facesim ferret fluidanimate freqmine raytrace streamcluster swaptions vips x264"
 fi
 avail_mode_list="baseline purebal purebal_mig fairbal_pct0 fairbal_pct150 fairbal_pct100"
 
@@ -45,6 +44,13 @@ for workload in $workload_list; do
 
 		if [ -e $workload_path ]; then
 			./test_scripts/wipe.sh
+
+			# change config.py
+			if [ $(cat $workload_path | grep 'windows/interactive') ]; then
+				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched.py config.py
+			else
+				ln -sf config/config_8ubuntu1104-mcsched$postfix.py config.py
+			fi
 
 			# additional option
 			opt=""
