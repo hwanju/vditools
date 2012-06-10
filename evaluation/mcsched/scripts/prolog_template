@@ -49,5 +49,4 @@ declare -A kvm_stat
 kvm_stat_list=`ls /sys/kernel/debug/kvm/* | sed 's/\/sys\/kernel\/debug\/kvm\///g'`
 for s in $kvm_stat_list; do
 	kvm_stat[$s]=`cat /sys/kernel/debug/kvm/$s`
-	echo "$s ${kvm_stat[$s]}"
 done

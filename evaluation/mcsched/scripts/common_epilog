@@ -33,5 +33,4 @@ echo -n > /tmp/kvm.stat
 for s in $kvm_stat_list; do
 	val=`cat /sys/kernel/debug/kvm/$s`
 	echo $s ${kvm_stat[$s]} $val $(( $val - ${kvm_stat[$s]} )) >> /tmp/kvm.stat
-	echo $s ${kvm_stat[$s]} $val $(( $val - ${kvm_stat[$s]} ))
 done
