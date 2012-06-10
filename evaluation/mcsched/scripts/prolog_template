@@ -43,8 +43,11 @@ done
 echo start_time=`date '+%s'` > /tmp/total.schedstat
 cat /proc/schedstat >> /tmp/total.schedstat
 pidstat -C kvm -u -I -r -d -w -h 5 > /tmp/pidstat.log &
-# vmexit stat
-exit_list=`ls /sys/kernel/debug/*exits | sed 's/\/sys\/kernel\/debug\///g'`
-for e in $exit_list; do
-	exit_count[$e]=`cat /sys/kernel/debug/$e`
+# kvm stat
+unset kvm_stat
+declare -A kvm_stat
+kvm_stat_list=`ls /sys/kernel/debug/kvm/* | sed 's/\/sys\/kernel\/debug\/kvm\///g'`
+for s in $kvm_stat_list; do
+	kvm_stat[$s]=`cat /sys/kernel/debug/kvm/$s`
+	echo "$s ${kvm_stat[$s]}"
 done

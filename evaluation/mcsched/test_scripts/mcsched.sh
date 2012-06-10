@@ -71,8 +71,8 @@ for workload in $workload_list; do
 			if [ -e /tmp/lh.result ]; then
 				mv /tmp/lh.result $resdir/$workload_name.lockholder
 			fi
-			if [ -e /tmp/kvm.exits ]; then
-				mv /tmp/kvm.exits $resdir/$workload_name.exits
+			if [ -e /tmp/kvm.stat ]; then
+				mv /tmp/kvm.stat $resdir/$workload_name.stat
 			fi
 			if [ -e /tmp/kvm.prof ]; then
 				mv /tmp/kvm.prof $resdir/$workload_name.prof
