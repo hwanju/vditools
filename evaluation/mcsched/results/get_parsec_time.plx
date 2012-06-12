@@ -47,7 +47,8 @@ foreach $res_file (@res_files) {
         }
 }
 
-@mode_list = ("baseline", "purebal", "purebal_mig", "fairbal_pct0", "fairbal_pct150", "fairbal_pct100");
+#@mode_list = ("baseline", "purebal", "purebal_mig", "fairbal_pct0", "fairbal_pct150", "fairbal_pct100");
+@mode_list = ("baseline", "purebal", "purebal_mig", "fairbal_pct100", "fairbal_pct150", "fairbal_pct200", "fairbal_pct250", "fairbal_pct300");
 foreach $mode (@mode_list) {
         print "\t$mode";
 }

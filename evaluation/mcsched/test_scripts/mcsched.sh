@@ -46,6 +46,7 @@ for workload in $workload_list; do
 			./test_scripts/wipe.sh
 
 			# change config.py
+			rm -f config.pyc
 			if [ $(cat $workload_path | grep 'windows/interactive') ]; then
 				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched.py config.py
 			else
@@ -57,7 +58,7 @@ for workload in $workload_list; do
 			if [ "$(echo $interactive_workloads | grep $workload)" != "" ]; then	# simple membership test
 				opt="-t"	# trace option
 			fi
-			cmd="./skbench.py $opt -w $workload_path start-stop"
+			cmd="./skbench.py $opt -i -p 3 -w $workload_path start-stop"
 			echo $cmd
 			$cmd | tee $resdir/$workload_name.result
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat

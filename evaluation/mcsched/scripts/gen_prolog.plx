@@ -9,7 +9,10 @@ $clean = $templ eq "-c" ? 1 : 0;
 	"purebal_mig"		=> 2,	
 	"fairbal_0pct"		=> 3,	
 	"fairbal_100pct"	=> 3,	
-	"fairbal_150pct"	=> 3
+	"fairbal_150pct"	=> 3,	
+	"fairbal_200pct"	=> 3,	
+	"fairbal_250pct"	=> 3,	
+	"fairbal_300pct"	=> 3
 );
 @submodes = qw( orig lhp perf prof debug );
 foreach $m (keys %mode_to_id) {

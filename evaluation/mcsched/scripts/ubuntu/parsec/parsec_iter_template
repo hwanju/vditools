@@ -27,7 +27,7 @@ do
         echo start_time=`date '+%s'` > /tmp/schedstat.log
         cat /proc/schedstat >> /tmp/schedstat.log
         
-        bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -s "/usr/bin/time -v" > /tmp/result
+        bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v" > /tmp/result
 
         echo "end_stat" >> /tmp/stat.log
         cat /proc/stat >> /tmp/stat.log
