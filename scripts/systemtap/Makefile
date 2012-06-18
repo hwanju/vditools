@@ -26,3 +26,6 @@ balsched_debug: balsched_debug.stp
 
 balsched_prof: balsched_prof.stp
 	stap -v -r `uname -r` $@.stp -m $@
+
+trace_ipi: trace_ipi.stp
+	stap -v -r `uname -r` $@.stp -m $@

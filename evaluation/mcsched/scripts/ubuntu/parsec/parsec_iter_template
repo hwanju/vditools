@@ -1,9 +1,12 @@
 PACKAGE=
 TYPE=
+NR_THREADS=
 
 cd ~/parsec-2.1
 mkdir -p pkgs/$TYPE/$PACKAGE/run/
 tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
+bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v"	# warmup run
+
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
@@ -27,7 +30,7 @@ do
         echo start_time=`date '+%s'` > /tmp/schedstat.log
         cat /proc/schedstat >> /tmp/schedstat.log
         
-        bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v" > /tmp/result
+        bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
 
         echo "end_stat" >> /tmp/stat.log
         cat /proc/stat >> /tmp/stat.log

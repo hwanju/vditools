@@ -1,5 +1,6 @@
 PACKAGE=
 TYPE=
+NR_THREADS=
 
 cd ~/parsec-2.1
 mkdir -p pkgs/$TYPE/$PACKAGE/run/
@@ -35,7 +36,7 @@ echo start_time=`date '+%s'` > /tmp/schedstat.log
 cat /proc/schedstat >> /tmp/schedstat.log
 
 # WORKLOAD RUN
-FUTEX_DEBUG=1 bin/parsecmgmt -a run -p $PACKAGE -n 8 -i native -k -s "/usr/bin/time -v" > /tmp/result
+FUTEX_DEBUG=1 bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
 
 echo "end_stat" >> /tmp/stat.log
 cat /proc/stat >> /tmp/stat.log

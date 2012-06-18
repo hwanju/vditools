@@ -39,6 +39,9 @@ unless ($clean) {
 	close FD;
 }
 
+`mkdir -p ubuntu/interactive` unless $clear;
+`mkdir -p windows/interactive` unless $clear;
+
 open FD, $templ or die "file open error: $templ\n" unless $clean;
 foreach $p (@ubuntu_workloads, @windows_workloads) {
 	$workload = $p . "_launch";

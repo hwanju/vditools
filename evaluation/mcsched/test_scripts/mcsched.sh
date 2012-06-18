@@ -3,6 +3,9 @@
 if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" ]; then
 	source workloads/mcsched/workloads.inc
 fi
+if [ "$nr_iter" == "" ]; then
+	nr_iter=3
+fi
 avail_mode_list="baseline purebal purebal_mig fairbal_pct0 fairbal_pct150 fairbal_pct100"
 
 if [ $# -le 1 ]; then
@@ -58,7 +61,7 @@ for workload in $workload_list; do
 			if [ "$(echo $interactive_workloads | grep $workload)" != "" ]; then	# simple membership test
 				opt="-t"	# trace option
 			fi
-			cmd="./skbench.py $opt -i -p 3 -w $workload_path start-stop"
+			cmd="./skbench.py $opt -i -p $nr_iter -w $workload_path start-stop"
 			echo $cmd
 			$cmd | tee $resdir/$workload_name.result
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat
