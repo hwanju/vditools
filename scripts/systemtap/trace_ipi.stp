@@ -1,0 +1,24 @@
+#!/usr/bin/stap -v
+
+global sched_start_us
+global tid_to_vcpu_id
+
+//probe kernel.trace("kvm_apic_ipi") {
+//	printf("%d A %d %d\n", gettimeofday_us(), $icr_low, $dest_id)
+//}
+
+probe kernel.trace("kvm_ipi") {
+	now = gettimeofday_us()
+	printf("%d %d I %x %d %d\n", now, now - sched_start_us[tid()], $irq->vector, $src_vcpu->vcpu_id, $dst_vcpu->vcpu_id)
+}
+probe __scheduler.ctxswitch.tp {
+	if (prev_tid in tid_to_vcpu_id) {
+		printf("%d D %d\n", gettimeofday_us(), tid_to_vcpu_id[prev_tid])
+	}
+	if (next_tid in tid_to_vcpu_id) {
+		sched_start_us[next_tid] = gettimeofday_us()
+	}
+}
+probe module("kvm").function("kvm_arch_vcpu_load") {
+    tid_to_vcpu_id[tid()] = $vcpu->vcpu_id
+}
