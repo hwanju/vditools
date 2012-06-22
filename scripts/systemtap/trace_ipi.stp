@@ -13,7 +13,7 @@ probe kernel.trace("kvm_ipi") {
 }
 probe __scheduler.ctxswitch.tp {
 	if (prev_tid in tid_to_vcpu_id) {
-		printf("%d D %d\n", gettimeofday_us(), tid_to_vcpu_id[prev_tid])
+		printf("%d D %d %d\n", gettimeofday_us(), tid_to_vcpu_id[prev_tid], prevtsk_state)
 	}
 	if (next_tid in tid_to_vcpu_id) {
 		sched_start_us[next_tid] = gettimeofday_us()
