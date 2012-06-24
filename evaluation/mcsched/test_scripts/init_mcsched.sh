@@ -27,7 +27,7 @@ else
 	echo 1000000 > /proc/sys/kernel/sched_urgent_tslice_limit_ns
 	echo 500000 > /sys/module/kvm/parameters/resched_ipi_unlock_latency_ns
 	echo 500000 > /sys/module/kvm/parameters/resched_ipi_cosched_tslice_ns
-	echo 100000 > /sys/module/kvm/parameters/tlb_shootdown_latency_ns
+	echo 500000 > /sys/module/kvm/parameters/tlb_shootdown_latency_ns
 
 	echo "mcsched on"
 fi

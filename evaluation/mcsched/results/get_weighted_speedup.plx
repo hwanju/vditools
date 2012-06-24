@@ -5,6 +5,8 @@ $solorun_fn = shift(@ARGV);
 open FD, $solorun_fn or die "file open error: $solorun_fn\n";
 while(<FD>) {
 	$solorun_time{$1} = $2 if (/(\w+)\s+(\d+)/);
+	$solorun_time{$1 . "1"} = $2 if (/(\w+)\s+(\d+)/);
+	$solorun_time{$1 . "2"} = $2 if (/(\w+)\s+(\d+)/);
 }
 close FD;
 
@@ -13,6 +15,7 @@ foreach $res_file (@res_files) {
         if ( $res_file =~ /1(\w+)\+1(\w+)@(\w+)/ ) {
                 $w1 = $1;
 		$w2 = $2;
+		$identical = $w1 eq $w2;
                 $mode = $3;
 
 		$c1 = $w1 eq "raytrace" ? "rtview" : $w1;
@@ -21,11 +24,13 @@ foreach $res_file (@res_files) {
                 open FD, $res_file;
 		for $w ($w1, $w2) { $total{$w} = $last{$w} = $n{$w} = 0 }
                 while(<FD>) {
+			$guest_id = $1 if (/^Guest(\d+)/);
 			if (/Command being/) {
 				if (/$c1/)	{ $w = $w1 }
 				else		{ $w = $w2 }
+				$w .= $guest_id if $identical;
 			}
-                        if (/Elapsed.+: ([0-9:]+)/) {
+                        elsif (/Elapsed.+: ([0-9:]+)/) {
                                 @times = split(/:/, $1);
                                 $nr_times = int(@times);
                                 if ($nr_times == 2) {
@@ -40,6 +45,10 @@ foreach $res_file (@res_files) {
                         }
                 }
                 close FD;
+		if ($identical) {
+			$w1 = $w1 . "1";
+			$w2 = $w2 . "2";
+		}
 		$w = $n{$w1} > $n{$w2} ? $w1 : $w2;
 		$total{$w} -= $last{$w};
 		$n{$w}--;

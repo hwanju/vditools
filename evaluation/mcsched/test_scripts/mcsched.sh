@@ -48,6 +48,12 @@ for workload in $workload_list; do
 		if [ -e $workload_path ]; then
 			./test_scripts/wipe.sh
 
+			if [ $(echo $mode | grep 'fairbal') ]; then
+				./test_scripts/init_mcsched.sh 1
+			else
+				./test_scripts/init_mcsched.sh 0
+			fi
+
 			# change config.py
 			rm -f config.pyc
 			if [ $(cat $workload_path | grep 'windows/interactive') ]; then
