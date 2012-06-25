@@ -25,10 +25,12 @@ $i = 1;
 foreach $guest_grp(@guest_grps) {
 	if ($guest_grp =~ /(\d+)(\w+)/) {
 		$nr_vm = $1;
-		$name = $2;
+		$base_name = $name = $2;
+		$base_name =~ s/up$//;
 		for (1 .. $nr_vm) {
-			$guest_name[$i-1] = "${name}-$i";
-			$guest_img_name[$i-1] = "${name}${postfix}-$i";
+			$guest_name[$i-1] = "${base_name}-$i";
+			$guest_img_fn[$i-1] = "${base_name}${postfix}-$i.qcow2";
+			$xml_fn[$i-1] = "${name}${postfix}-$i.xml";
 			$i++;
 		}
 	}
@@ -70,12 +72,12 @@ for ($i = 0 ; $i < $nr_guest; $i++) {
 print OFD "]\n";
 print OFD "guests_image_map= {\n";
 for ($i = 0 ; $i < $nr_guest ; $i++) {
-	print OFD "\t'$guest_name[$i]': '$conf{'GUEST_IMAGE_DIR'}/$guest_img_name[$i].qcow2',\n";
+	print OFD "\t'$guest_name[$i]': '$conf{'GUEST_IMAGE_DIR'}/$guest_img_fn[$i]',\n";
 }
 print OFD "}\n";
 print OFD "guests_config_map = {\n";
 for ($i = 0 ; $i < $nr_guest ; $i++) {
-	print OFD "\t'$guest_name[$i]': os.getcwd() + '/virsh/$guest_img_name[$i].xml',\n";
+	print OFD "\t'$guest_name[$i]': os.getcwd() + '/virsh/$xml_fn[$i]',\n";
 }
 print OFD "}\n";
 

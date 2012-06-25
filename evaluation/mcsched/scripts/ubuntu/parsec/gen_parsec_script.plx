@@ -3,7 +3,6 @@
 @parsec_workloads=qw(blackscholes  bodytrack  canneal  dedup  facesim  ferret  fluidanimate  freqmine  raytrace  streamcluster  swaptions  vips  x264);
 
 $templ = @ARGV ? shift(@ARGV) : "parsec_template";
-$nr_threads = @ARGV ? shift(@ARGV) : 8;
 $postfix = @ARGV ? shift(@ARGV) : "";
 $clean = $templ eq "-c";
 
@@ -20,7 +19,6 @@ foreach $p (@parsec_workloads) {
         while(<FD>) {
                 s/^PACKAGE=/PACKAGE=$p/g;
                 s/^TYPE=/TYPE=$t/g;
-                s/^NR_THREADS=/NR_THREADS=$nr_threads/g;
                 if ($p eq "streamcluster") {
                         s/tar xf.+//g;
                 }

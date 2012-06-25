@@ -1,10 +1,17 @@
 #!/bin/bash
 
+# KSM off
+echo 0 > /sys/kernel/mm/ksm/run
+echo 2 > /sys/kernel/mm/ksm/run
+
 if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" ]; then
 	source workloads/mcsched/workloads.inc
 fi
 if [ "$nr_iter" == "" ]; then
 	nr_iter=3
+fi
+if [ "$mixed" == "" ]; then
+	mixed="0"
 fi
 avail_mode_list="baseline purebal purebal_mig fairbal_pct0 fairbal_pct150 fairbal_pct100"
 
@@ -56,7 +63,9 @@ for workload in $workload_list; do
 
 			# change config.py
 			rm -f config.pyc
-			if [ $(cat $workload_path | grep 'windows/interactive') ]; then
+			if [ $mixed == "1" ]; then
+				ln -sf config/config_1ubuntu1104+7ubuntu1104up-mcsched.py config.py
+			elif [ $(cat $workload_path | grep 'windows/interactive') ]; then
 				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched.py config.py
 			else
 				ln -sf config/config_8ubuntu1104-mcsched$postfix.py config.py
@@ -67,7 +76,7 @@ for workload in $workload_list; do
 			if [ "$(echo $interactive_workloads | grep $workload)" != "" ]; then	# simple membership test
 				opt="-t"	# trace option
 			fi
-			cmd="./skbench.py $opt -i -p $nr_iter -w $workload_path start-stop"
+			cmd="./skbench.py $opt -i $nr_iter -w $workload_path start-stop"
 			echo $cmd
 			$cmd | tee $resdir/$workload_name.result
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat

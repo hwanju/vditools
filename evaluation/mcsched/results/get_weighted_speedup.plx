@@ -22,7 +22,16 @@ foreach $res_file (@res_files) {
 
                 chomp($res_file);
                 open FD, $res_file;
-		for $w ($w1, $w2) { $total{$w} = $last{$w} = $n{$w} = 0 }
+
+		if ($identical) {
+			$total{$w1 . "1"} = $last{$w1 . "1"} = $n{$w1 . "1"} = 0;
+			$total{$w2 . "2"} = $last{$w2 . "2"} = $n{$w2 . "2"} = 0;
+		}
+		else {
+			for $w ($w1, $w2) { 
+				$total{$w} = $last{$w} = $n{$w} = 0;
+			}
+		}
                 while(<FD>) {
 			$guest_id = $1 if (/^Guest(\d+)/);
 			if (/Command being/) {
@@ -49,11 +58,15 @@ foreach $res_file (@res_files) {
 			$w1 = $w1 . "1";
 			$w2 = $w2 . "2";
 		}
+		## print "$mode $w1: total=$total{$w1} n=$n{$w1} last=$last{$w1}\n";
+		## print "$mode $w2: total=$total{$w2} n=$n{$w2} last=$last{$w2}\n";
+
 		$w = $n{$w1} > $n{$w2} ? $w1 : $w2;
 		$total{$w} -= $last{$w};
 		$n{$w}--;
-		## print "$w1: total=$total{$w1} n=$n{$w1}\n";
-		## print "$w2: total=$total{$w2} n=$n{$w2}\n";
+
+		## printf "$mode $w1: total=$total{$w1} n=$n{$w1} avg=%d\n", $total{$w1} / $n{$w1};
+		## printf "$mode $w2: total=$total{$w2} n=$n{$w2} avg=%d\n", $total{$w2} / $n{$w2};
 
 		$wname = "$w1+$w2";
 		$avg{$wname}{$mode}[0] = $n{$w1} ? $total{$w1} / $n{$w1} : 0;
@@ -74,7 +87,7 @@ foreach $wname (sort keys %avg) {
 		$w1_speedup = $avg{$wname}{$mode}[0] ? $solorun_time{$w1} / $avg{$wname}{$mode}[0] : 0;
 		$w2_speedup = $avg{$wname}{$mode}[1] ? $solorun_time{$w2} / $avg{$wname}{$mode}[1] : 0;
 		$weigted_speedup = $w1_speedup + $w2_speedup;
-		##printf "%d(=%d+%d)\t", $avg{$wname}{$mode}[0] + $avg{$wname}{$mode}[1], $avg{$wname}{$mode}[0], $avg{$wname}{$mode}[1];
+		#printf "%d(=%d+%d)\t", $avg{$wname}{$mode}[0] + $avg{$wname}{$mode}[1], $avg{$wname}{$mode}[0], $avg{$wname}{$mode}[1];
 		printf "%.2lf(=%.2lf+%.2lf)\t", $weigted_speedup, $w1_speedup, $w2_speedup;
 	}
 	print "\n";

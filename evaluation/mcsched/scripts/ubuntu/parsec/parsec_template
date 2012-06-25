@@ -1,6 +1,6 @@
 PACKAGE=
 TYPE=
-NR_THREADS=
+NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 
 cd ~/parsec-2.1
 mkdir -p pkgs/$TYPE/$PACKAGE/run/
@@ -34,10 +34,12 @@ echo "start_stat" > /tmp/stat.log
 cat /proc/stat >> /tmp/stat.log
 echo start_time=`date '+%s'` > /tmp/schedstat.log
 cat /proc/schedstat >> /tmp/schedstat.log
+pidstat -u 10 > /tmp/pidstat.log &
 
 # WORKLOAD RUN
 FUTEX_DEBUG=1 bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
 
+killall -9 pidstat
 echo "end_stat" >> /tmp/stat.log
 cat /proc/stat >> /tmp/stat.log
 echo end_time=`date '+%s'` >> /tmp/schedstat.log
@@ -65,6 +67,7 @@ if [ -e /proc/lock_stat ]; then
 fi
 cat /tmp/stat.log >> /tmp/parsec.result
 cat /tmp/schedstat.log >> /tmp/parsec.result
+cat /tmp/pidstat.log >> /tmp/parsec.result
 cat /tmp/futex_prof.log >> /tmp/parsec.result
 
 cat /tmp/parsec.result | TO_HOST

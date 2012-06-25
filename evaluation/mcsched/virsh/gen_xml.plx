@@ -19,19 +19,6 @@ $postfix = @ARGV ? shift(@ARGV) : "";
 die "$guest_conf_fn doesn't exist. You MUST create $guest_conf_fn based on guest_config.example (Don't touch guest_config.example itself!)\n" if ! -e $guest_conf_fn;
 die "$eval_conf_fn doesn't exist. You MUST create $eval_conf_fn based on eval_config.example (Don't touch eval_config.example itself!)\n" if ! -e $eval_conf_fn;
 
-if ($vm_format =~ /^(\d+)([\w\.]+)/) {
-	$nr_vm = $1;
-	$name = $2;
-	for $i (1 .. $nr_vm) {
-		$guest_name[$i-1] = "${name}-$i";
-		$guest_img_name[$i-1] = "${name}${postfix}-$i";
-	}
-}
-else {
-	die "format is invalid\n";
-}
-$nr_guest = int(@guest_name);
-
 open FD, "$guest_conf_fn";
 while(<FD>) {
 	@f = split(/\s+/);
@@ -49,7 +36,25 @@ while(<FD>) {
 close FD;
 
 # can override MC via environment variable
-$conf{'MC'} = $ENV{MC} ? 'Y' : 'N' if defined($ENV{MC});
+$conf{'MC'} = $ENV{MC} if defined($ENV{MC});
+
+# can override VCPU via environment variable
+$conf{'VCPU'} = $ENV{VCPU} if defined($ENV{VCPU});
+$up = defined($ENV{VCPU}) && $ENV{VCPU} eq '1' ? "up" : "";
+
+if ($vm_format =~ /^(\d+)([\w\.]+)/) {
+	$nr_vm = $1;
+	$name = $2;
+	for $i (1 .. $nr_vm) {
+		$guest_name[$i-1] = "${name}-$i";
+		$guest_img_name[$i-1] = "${name}${postfix}-$i";
+		$xml_fn[$i-1] = "${name}${up}${postfix}-$i.xml";
+	}
+}
+else {
+	die "format is invalid\n";
+}
+$nr_guest = int(@guest_name);
 
 open FD, "$eval_conf_fn";
 while(<FD>) {
@@ -64,7 +69,7 @@ $uuid_tail_base = "8e41";
 open FD, "$xml_templ" or die "file open error: $xml_templ\n"; 
 for $i (0 .. ($nr_guest - 1)) {
 	seek(FD, 0, 0);
-	open OFD, ">$guest_img_name[$i].xml";
+	open OFD, ">$xml_fn[$i]";
 	$uuid_tail = sprintf("%x", hex($uuid_tail_base) + $i);
 	$spice_port = int($conf{'SPICE_PORT_BASE'}) + $i;
 	while(<FD>) {
