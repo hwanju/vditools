@@ -72,7 +72,9 @@ for workload in $workload_list; do
 			$cmd | tee $resdir/$workload_name.result
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat
 			mv /tmp/pidstat.log $resdir/$workload_name.pidstat
+
 			mkdir -p $resdir/$workload_name.threadinfo
+                        rm -rf $resdir/$workload_name.threadinfo/*
 			mv /tmp/g[0-9]*.[0-9]* $resdir/$workload_name.threadinfo
 			if [ -e /tmp/kvm.perf.data ]; then
 				perf kvm --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules report -i /tmp/kvm.perf.data > $resdir/$workload_name.guest.perf
