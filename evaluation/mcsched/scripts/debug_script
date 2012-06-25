@@ -1,4 +1,4 @@
-debug_module=/root/scripts/systemtap/trace_ipi.ko
+debug_module=/root/scripts/systemtap/urgent_sched_debug.ko
 if [ -e $debug_module ]; then
 	staprun $debug_module > /tmp/kvm.debug &
 fi
