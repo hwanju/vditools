@@ -3,7 +3,6 @@
   <uuid></uuid>
   <memory></memory>
   <currentMemory></currentMemory>
-  <memoryBacking><hugepages/></memoryBacking>
   <vcpu></vcpu>
   <os>
     <type arch=>hvm</type>
