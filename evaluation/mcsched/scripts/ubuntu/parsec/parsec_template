@@ -5,6 +5,8 @@ NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 cd ~/parsec-2.1
 mkdir -p pkgs/$TYPE/$PACKAGE/run/
 tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
+mem_hog.sh	# allocate free memory intentionally to avoid runtime minor fault of kvm vcpus
+
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
