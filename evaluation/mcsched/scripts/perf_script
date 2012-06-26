@@ -2,4 +2,4 @@
 ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
 ssh cag11 "cat /proc/modules" > /tmp/guest.modules
 pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
-perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -e cycles,cache-misses,cache-references -p $pid -o /tmp/kvm.perf.data &
+perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -p $pid -o /tmp/kvm.perf.data &
