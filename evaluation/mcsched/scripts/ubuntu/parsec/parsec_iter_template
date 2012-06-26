@@ -2,11 +2,11 @@ PACKAGE=
 TYPE=
 NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 
+mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
 cd ~/parsec-2.1
 mkdir -p pkgs/$TYPE/$PACKAGE/run/
 tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
 ####bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v"	# warmup run
-mem_hog.sh	# allocate free memory intentionally to avoid runtime minor fault of kvm vcpus
 
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL

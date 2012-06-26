@@ -6,7 +6,7 @@ foreach $res_file (@res_files) {
                 $workload = $1;
 
                 chomp($res_file);
-                $total = $n = 0;
+                $total = $sqtotal = $n = 0;
                 open FD, $res_file;
                 while(<FD>) {
                         if (/Elapsed.+: ([0-9:]+)/) {
@@ -19,10 +19,13 @@ foreach $res_file (@res_files) {
                                         $sec = $times[0] * 3600 + $times[1] * 60 + $times[2];
                                 }
 				$total += $sec;
+				$sqtotal += ($sec*$sec);
 				$n++;
                         }
                 }
                 close FD;
-		printf ("$workload\t%d\n", $total / $n);
+		$avg = $total / $n;
+		$sd = sqrt(($sqtotal / $n) - ($avg*$avg));
+		printf ("$workload\t%d\t%.2lf\n", $avg, $sd);
         }
 }
