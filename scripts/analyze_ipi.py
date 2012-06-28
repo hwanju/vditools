@@ -49,7 +49,7 @@ class ReschedIpiFlow:
 		if self.check_full():
 			####print "FULL",
 			global trace_start_time_us
-			print "%d\t1" % (self.start_time_us - trace_start_time_us)
+			print "%d\t%d" % (self.start_time_us - trace_start_time_us, len(self.vcpu_flow))
 		#### print "%d flow t=%d n=%d" % (self.start_time_us, self.flow_type, len(self.vcpu_flow)), self.vcpu_flow
 		if keep_tail:
 			self.vcpu_flow = self.vcpu_flow[-1:]
