@@ -28,9 +28,15 @@ workload_format=$1
 if [ $(echo $workload_format | grep parsec) ]; then
 	workload_list=$parsec_workloads
 	resdir=results/mcsched/_$workload_format
+	if [ "$time_ns" != "" ]; then
+		resdir=$resdir-${time_ns}ns
+	fi
 elif [ $(echo $workload_format | grep interactive) ]; then
 	workload_list=$interactive_workloads
 	resdir=results/mcsched/_$workload_format
+	if [ "$time_ns" != "" ]; then
+		resdir=$resdir-${time_ns}ns
+	fi
 else
 	workload_list=$(echo $workload_format | sed 's/+.*//g')
 	workload_list=$(echo $workload_list | sed 's/^[0-9]*//g')
@@ -56,7 +62,7 @@ for workload in $workload_list; do
 			./test_scripts/wipe.sh
 
 			if [ $(echo $mode | grep 'fairbal') ]; then
-				./test_scripts/init_mcsched.sh 1
+				./test_scripts/init_mcsched.sh 1 $time_ns
 			else
 				./test_scripts/init_mcsched.sh 0
 			fi
@@ -76,7 +82,15 @@ for workload in $workload_list; do
 			if [ "$(echo $interactive_workloads | grep $workload)" != "" ]; then	# simple membership test
 				opt="-t"	# trace option
 			fi
-			cmd="./skbench.py $opt -i $nr_iter -w $workload_path start-stop"
+			iter_opt=""
+			if [ $nr_iter != "0" ]; then
+				iter_opt="-i $nr_iter"
+			fi
+			private_opt=""
+			if [ $private_arg1 != "" ]; then
+				private_opt="-p $private_arg1"
+			fi
+			cmd="./skbench.py $opt $iter_opt $private_opt -w $workload_path start-stop"
 			echo $cmd
 			$cmd | tee $resdir/$workload_name.result
 			mv /tmp/total.schedstat $resdir/$workload_name.schedstat
