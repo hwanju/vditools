@@ -1,18 +1,21 @@
 #!/usr/bin/perl -w
 
-@trace_files = `ls *.debug`;
+die "Usage: $0 <linux|windows> <trace file list>\n" unless @ARGV > 1;
+$os = shift(@ARGV);
 
-# linux-specific ipi info
-$ipi_name{0xfd} = "Reschedule";
-$start_tlb_vec = 0xcf;
-$nr_vcpus = 8;
-foreach $vec ($start_tlb_vec .. ($start_tlb_vec + $nr_vcpus - 1)) {
-	$ipi_name{$vec} = "TLB";
+if ($os eq "linux") {
+	# linux-specific ipi info
+	$ipi_name{0xfd} = "Reschedule";
+	$start_tlb_vec = 0xcf;
+	$nr_vcpus = 8;
+	foreach $vec ($start_tlb_vec .. ($start_tlb_vec + $nr_vcpus - 1)) {
+		$ipi_name{$vec} = "TLB";
+	}
+	$ipi_name{0xfc} = "Call";
 }
-$ipi_name{0xfc} = "Call";
 
 print "# nr_ipi/sec\n";
-foreach $fn (@trace_files) {
+foreach $fn (@ARGV) {
 	$workload = $1 if ($fn =~ /1(\w+)@/);
 	print "\t$workload";
 	push(@workload_list, $workload);
@@ -22,7 +25,12 @@ foreach $fn (@trace_files) {
 		if (/(\d+) \d+ I ([0-9a-f]+)/) {
 			$time_us = $1;
 			$start_time_us = $time_us if $start_time_us == 0;
-			$ipi{$ipi_name{hex($2)}}{$workload}++;
+			if (defined($ipi_name{hex($2)})) {
+				$ipi{$ipi_name{hex($2)}}{$workload}++;
+			}
+			else {
+				$ipi{$2}{$workload}++;
+			}
 		}
 	}
 	$time_sec{$workload} = ($time_us - $start_time_us) / 1000000;

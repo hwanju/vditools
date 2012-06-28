@@ -3,6 +3,9 @@
 global sched_start_us
 global tid_to_vcpu_id
 
+probe kernel.trace("kvm_ui") {
+	printf("%d U %d %d\n", gettimeofday_us(), $event_info & 0xff, ($event_info >> 8) & 0xff)
+}
 probe kernel.trace("kvm_apic_ipi") {
 	printf("%d A %x %d\n", gettimeofday_us(), $icr_low, $dest_id)
 }
