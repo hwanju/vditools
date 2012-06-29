@@ -87,7 +87,7 @@ for workload in $workload_list; do
 				iter_opt="-i $nr_iter"
 			fi
 			private_opt=""
-			if [ $private_arg1 != "" ]; then
+			if [ "$private_arg1" != "" ]; then
 				private_opt="-p $private_arg1"
 			fi
 			cmd="./skbench.py $opt $iter_opt $private_opt -w $workload_path start-stop"

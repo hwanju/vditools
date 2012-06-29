@@ -5,8 +5,16 @@ $eval_conf_fn = "../config/eval_config";
 $guest_conf_fn = "../virsh/guest_config";
 $templ = "launch_template";
 
-@ubuntu_workloads  = qw( impress firefox chrome gimp );
-@windows_workloads = qw( powerpoint );
+open FD, "../workloads/workloads.inc";
+while(<FD>) {
+	next if (/^#/);
+	($workload_name, $list) = split(/=/);
+	$list =~ s/"//g;
+	@workload_list = split(/\s+/, $list);
+	@ubuntu_workloads  = @workload_list if ($workload_name eq "ubuntu_workloads");
+	@windows_workloads = @workload_list if ($workload_name eq "windows_workloads");
+}
+close FD;
 for (@ubuntu_workloads)  { $is_ubuntu_workload{$_} = 1 }
 
 if (@ARGV == 1 && $ARGV[0] eq "-c") {
@@ -43,9 +51,8 @@ unless ($clean) {
 `mkdir -p windows/interactive` unless $clear;
 
 open FD, $templ or die "file open error: $templ\n" unless $clean;
-foreach $p (@ubuntu_workloads, @windows_workloads) {
-	$workload = $p . "_launch";
-	$subdir = $is_ubuntu_workload{$p} ? "ubuntu/interactive" : "windows/interactive";
+foreach $workload (@ubuntu_workloads, @windows_workloads) {
+	$subdir = $is_ubuntu_workload{$workload} ? "ubuntu/interactive" : "windows/interactive";
 	if ($clean) {
 		`rm -f $subdir/$workload`;
 		next;

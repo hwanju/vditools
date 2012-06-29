@@ -5,11 +5,20 @@ die "Usage: $0 <N>workload+<M>workload\@mode\n" if @ARGV < 1;
 $fn = shift(@ARGV);
 ##$postfix = @ARGV ? shift(@ARGV) : "";
 die "Error: $fn aleary exits. Check it!\n" if -e $fn;
-open FD, ">$fn";
 
-@parsec_workloads=qw( blackscholes  bodytrack  canneal  dedup  facesim  ferret  fluidanimate  freqmine  raytrace  streamcluster  swaptions  vips  x264 );
-@ubuntu_workloads=qw( impress_launch firefox_launch chrome_launch gimp_launch );
-@windows_workloads=qw( powerpoint_launch );
+open FD, "workloads.inc";
+while(<FD>) {
+	next if (/^#/);
+	($workload_name, $list) = split(/=/);
+	$list =~ s/"//g;
+	@workload_list = split(/\s+/, $list);
+	@parsec_workloads  = @workload_list if ($workload_name eq "parsec_workloads");
+	@ubuntu_workloads  = @workload_list if ($workload_name eq "ubuntu_workloads");
+	@windows_workloads = @workload_list if ($workload_name eq "windows_workloads");
+}
+close FD;
+
+open FD, ">$fn";
 
 # for workload membership
 my %parsec;

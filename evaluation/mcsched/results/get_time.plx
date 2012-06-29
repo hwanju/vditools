@@ -1,7 +1,8 @@
 #!/usr/bin/perl -w
 
 @res_files = `ls *.result`;
-print "#workload\tuser\tsys\tuser(%)\tsys(%)\ttime\n";
+#print "#workload\tuser\tsys\tuser(%)\tsys(%)\ttime\n";
+print "#workload\tuser(%)\tsys(%)\n";
 foreach $res_file (@res_files) {
         if ( $res_file =~ /^\d?([a-z0-9]+)/ ) {
                 $p = $1;
@@ -10,6 +11,7 @@ foreach $res_file (@res_files) {
                 $n = $total = $total_user = $total_sys = 0;
                 open FD, $res_file;
                 while(<FD>) {
+			last if (/^Guest2/);
                         if (/User time \(seconds\): (\d+\.\d+)/) {
                                 $total_user += $1;
                         }
@@ -37,6 +39,7 @@ foreach $res_file (@res_files) {
 
                 $avg = $n ? $total / $n : 0;
 
-                printf("$p\t$avg_user\t$avg_sys\t%.1lf\t%.1lf\t%.2lf\n", $avg_user * 100 / $avg_total, $avg_sys * 100 / $avg_total, $avg);
+		#printf("$p\t$avg_user\t$avg_sys\t%.1lf\t%.1lf\t%.2lf\n", $avg_user * 100 / $avg_total, $avg_sys * 100 / $avg_total, $avg);
+		printf("$p\t%.1lf\t%.1lf\n", $avg_user * 100 / $avg_total, $avg_sys * 100 / $avg_total);
         }
 }
