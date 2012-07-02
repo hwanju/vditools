@@ -111,6 +111,14 @@ probe kernel.trace("kvm_apic_ipi") {
 			)
 	}
 }
+probe kernel.trace("kvm_apic") {
+	if ($rw == 1) {
+		printf("%d AW d%d_v%d-p%d r=%x v=%x\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
+	}
+}
+probe kernel.trace("kvm_apic_eoi") {
+	printf("%d EOI d%d_v%d-p%d v=%x\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $vector)
+}
 probe kernel.function("set_urgent_task") {
 	if ($p->pid in vcpu_list) {
 		if (verbose >= debug_level) 
@@ -158,8 +166,10 @@ probe kernel.trace("sched_urgent_entity") {
 			printf("%d\t\t\tOP %s d%d_v%d-p%d:l%d %s=%d %s=%d ",
 				gettimeofday_us(),
 				ut_op[$op],
-				$p ? $p->tgid : -1, 
-				$p ? vcpu_list[$p->pid] : -1, 
+				//$p ? $p->tgid : -1, 
+				//$p ? vcpu_list[$p->pid] : -1, 
+				se_pid[$se], 
+				$se in se_vcpu ? se_vcpu[$se] : -1,
 				$cpu,
 				$cpu == cpu(),
 				ut_arg[$op, 0], $arg1 > 10000 || $arg1 < 0 ? $arg1 / 1000 : $arg1, 
@@ -198,9 +208,9 @@ probe kernel.trace("sched_urgent_entity") {
 			if (verbose >= debug_level) 
 				printf("%s=a%d:h%d:u%d:q%d:r%d\n",		// a: hrtick active, h: hrtick handler
 					ut_arg[$op, 2],
+					($arg3>>5) & 0x1, 
 					($arg3>>4) & 0x1, 
-					($arg3>>3) & 0x1, 
-					($arg3>>2) & 0x1, 
+					($arg3>>2) & 0x3, 
 					($arg3>>1) & 0x1, 
 					$arg3 & 0x1 
 				)
@@ -217,10 +227,12 @@ probe __scheduler.ctxswitch.tp {
 	if ((prev_tid in vcpu_list) || (next_tid in vcpu_list)) {
 		cur_time_us = gettimeofday_us()
 		if (verbose >= debug_level) 
-			printf("%d S d%d_v%d-p%d:u%dq%d->d%d_v%d-p%d:u%d:ts%d\n", 
+			printf("%d S d%d_%s%d-p%d:u%dq%d->d%d_%s%d-p%d:u%d:ts%d\n", 
 				cur_time_us,
-				prev_pid, vcpu_list[prev_tid], cpu(), $prev->se->urgent, $prev->se->on_rq,
-				next_pid, vcpu_list[next_tid], cpu(), $next->se->urgent, $next->se->urgent_tslice / 1000
+				prev_pid, prev_tid in vcpu_list ? "v" : "t", 
+				prev_tid in vcpu_list ? vcpu_list[prev_tid] : prev_tid, cpu(), $prev->se->urgent, $prev->se->on_rq,
+				next_pid, next_tid in vcpu_list ? "v" : "t", 
+				next_tid in vcpu_list ? vcpu_list[next_tid] : next_tid, cpu(), $next->se->urgent, $next->se->urgent_tslice / 1000
 			)
 		if ($prev->se->on_rq && $prev->pid in vcpu_list && verbose >= warn_level) {
 			if (resched_ipi_xmit_time_us[$prev->pid]) {
