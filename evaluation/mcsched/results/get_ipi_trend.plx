@@ -1,25 +1,36 @@
 #!/usr/bin/perl -w
 
-die "Usage: $0 <Reschedule|TLB> <bin in us> <trace file>\n" unless @ARGV == 3;
+die "Usage: $0 <linux|windows> <Reschedule|TLB> <bin in us> <trace file>\n" unless @ARGV == 4;
+$os = shift(@ARGV);
 $ipi_type = shift(@ARGV); 
 $bin_us = shift(@ARGV);
 $fn = shift(@ARGV); 
 
+if ($os eq "linux") {
 # linux-specific ipi info
-$ipi_name{0xfd} = "Reschedule";
-$start_tlb_vec = 0xcf;
-$nr_vcpus = 8;
-foreach $vec ($start_tlb_vec .. ($start_tlb_vec + $nr_vcpus - 1)) {
-	$ipi_name{$vec} = "TLB";
+	$ipi_name{0xfd} = "Reschedule";
+	$start_tlb_vec = 0xcf;
+	$nr_vcpus = 8;
+	foreach $vec ($start_tlb_vec .. ($start_tlb_vec + $nr_vcpus - 1)) {
+		$ipi_name{$vec} = "TLB";
+	}
+	$ipi_name{0xfc} = "Call";
 }
-$ipi_name{0xfc} = "Call";
+elsif ($os eq "windows") {
+	$ipi_name{0x2f} = "Reschedule";
+	$ipi_name{0xe1} = "TLB";
+}
+else {
+	die "os type is linux or windows\n";
+}
 
 $workload = $1 if ($fn =~ /1(\w+)@/);
+$workload = $fn unless defined($workload);
 open FD, $fn;
 $bin_id = $prev_bin_id = $start_time_us = 0;
 while(<FD>) {
 	if (/(\d+) \d+ I ([0-9a-f]+)/) {
-		next unless $ipi_name{hex($2)} eq $ipi_type;
+		next unless defined($ipi_name{hex($2)}) && $ipi_name{hex($2)} eq $ipi_type;
 		$time_us = $1;
 		$start_time_us = $time_us if $start_time_us == 0;
 
