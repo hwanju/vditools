@@ -86,6 +86,16 @@ probe begin {
 	ut_arg[9, 0] = "dl"	// delay	
 	ut_arg[9, 1] = "rt"
 	ut_arg[9, 2] = "ut"	// or 3==URGENT_EXPIRED
+
+	ut_op[10] = "ac1"
+	ut_arg[10, 0] = "ts"
+	ut_arg[10, 1] = "sy"
+	ut_arg[10, 2] = "ut"
+
+	ut_op[11] = "ac2"
+	ut_arg[11, 0] = "ts"
+	ut_arg[11, 1] = "sy"
+	ut_arg[11, 2] = "ut"
 }
 probe kernel.trace("kvm_apic_ipi") {
 	vec = $icr_low & 0xff
@@ -136,6 +146,9 @@ probe kernel.function("set_urgent_entity") {
 		else
 			tlb_ipi_recv_time_us[se_pid[$se]] = -1
 	}
+}
+probe kernel.function("check_need_hrtick").return {
+	printf("%d CH p%d %d\n", gettimeofday_us(), cpu(), $return)
 }
 probe kernel.trace("sched_urgent_entity") {
 	if ($op != 7 || $p->pid in vcpu_list) {

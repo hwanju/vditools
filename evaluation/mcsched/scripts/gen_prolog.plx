@@ -13,6 +13,7 @@ $clean = $templ eq "-c" ? 1 : 0;
 @submodes = qw( orig lhp perf prof debug );
 foreach $m (keys %mode_to_id) {
 	$balsched = $mode_to_id{$m};
+	$ipisched = $m =~ /fairbal/ ? 1 : 0;
 	$imbalance = 0;
 	$imbalance = $1 if ($m =~ /(\d+)/);
 	`rm -f ${m}_prolog*` if $clean;
@@ -22,9 +23,10 @@ foreach $m (keys %mode_to_id) {
 			unlink($prolog);
 			next;
 		}
-		`sed 's/^BALSCHED=/BALSCHED=$balsched/g' $templ > $prolog.tmp`;
-		`sed 's/^IMBALANCE=/IMBALANCE=$imbalance/g' $prolog.tmp > $prolog`;
-		`rm -f $prolog.tmp`;
+		`sed 's/^BALSCHED=/BALSCHED=$balsched/g' $templ > $prolog.tmp.1`;
+		`sed 's/^IPISCHED=/IPISCHED=$ipisched/g' $prolog.tmp.1 > $prolog.tmp.2`;
+		`sed 's/^IMBALANCE=/IMBALANCE=$imbalance/g' $prolog.tmp.2 > $prolog`;
+		`rm -f $prolog.tmp*`;
 		`cat ${sm}_script >> $prolog` if (-e "${sm}_script"); 
 	}
 }

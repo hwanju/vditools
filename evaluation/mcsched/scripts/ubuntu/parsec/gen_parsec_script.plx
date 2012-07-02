@@ -25,6 +25,9 @@ foreach $p (@parsec_workloads) {
                 if ($p eq "freqmine") {
                         s/-k/-k -c gcc-openmp/g;
                 }
+		if ($p eq "x264") {	# for large input, optimize it to make warmup fast
+			s/^tar.+/dd if=pkgs\/\$TYPE\/\$PACKAGE\/run\/eledream_1920x1080_512.y4m of=\/dev\/null/g;
+		}
                 print OFD "$_";
         }
         close OFD;

@@ -1,4 +1,5 @@
 BALSCHED=
+IPISCHED=
 IMBALANCE=
 
 CPUCTL_ROOT="/cpuctl"
@@ -17,8 +18,8 @@ j=0
 for gname in ${GROUP_NAME[@]}
 do
 	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
-	/bin/echo 65536 > ${GROUP_PATH[i]}/cpu.shares
 	/bin/echo $BALSCHED > ${GROUP_PATH[i]}/cpu.balsched
+	/bin/echo $IPISCHED > ${GROUP_PATH[i]}/cpu.ipisched
 
 	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
         if [ "$pid" != "" ]; then

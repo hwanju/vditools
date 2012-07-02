@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 
-@res_files = `ls *.result`;
+$filter = @ARGV ? shift(@ARGV) : "";
+
+@res_files = `ls *$filter*.result`;
 foreach $res_file (@res_files) {
         if ( $res_file =~ /^1(\w+)/ ) {
                 $workload = $1;
@@ -24,8 +26,11 @@ foreach $res_file (@res_files) {
                         }
                 }
                 close FD;
-		$avg = $total / $n;
-		$sd = sqrt(($sqtotal / $n) - ($avg*$avg));
+		if ($n) {
+			$avg = $total / $n;
+			$sd = sqrt(($sqtotal / $n) - ($avg*$avg));
+		}
+		else { $avg = $sd = 0 }
 		printf ("$workload\t%d\t%.2lf\n", $avg, $sd);
         }
 }

@@ -1,13 +1,21 @@
 #!/usr/bin/stap -v
 
+global shorthand_name
 global sched_start_us
 global tid_to_vcpu_id
 
+probe begin {
+        shorthand_name[0] = "dst";
+        shorthand_name[1] = "self";
+        shorthand_name[2] = "all";
+        shorthand_name[3] = "abs";
+}
 probe kernel.trace("kvm_ui") {
 	printf("%d U %d %d\n", gettimeofday_us(), $event_info & 0xff, ($event_info >> 8) & 0xff)
 }
 probe kernel.trace("kvm_apic_ipi") {
-	printf("%d A %x %d\n", gettimeofday_us(), $icr_low, $dest_id)
+        sh = $icr_low >> 18 & 0x3
+	printf("%d A %s %x %d\n", gettimeofday_us(), shorthand_name[sh], $icr_low, $dest_id)
 }
 
 probe kernel.trace("kvm_ipi") {

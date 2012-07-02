@@ -63,6 +63,8 @@ while(<FD>) {
 }
 close FD;
 
+$conf{'MEM'} = 2621440 if $up;	# max # of up vm is 7, and make sure their sum < 20GB
+
 #generate xml
 $uuid_head = "1e77f5bf-b623-186d-1651-7feb7272";
 $uuid_tail_base = "8e41";

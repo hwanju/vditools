@@ -29,10 +29,13 @@ if [ $on -eq 0 ]; then
 	echo "mcsched off"
 else
 	echo 1 > /proc/sys/kernel/sched_urgent_enabled
-	echo $time_ns > /proc/sys/kernel/sched_urgent_tslice_limit_ns
-	echo $time_ns > /sys/module/kvm/parameters/resched_ipi_unlock_latency_ns
+	#echo $time_ns > /proc/sys/kernel/sched_urgent_tslice_limit_ns
+	echo 500000 > /proc/sys/kernel/sched_urgent_tslice_limit_ns
+	#echo $time_ns > /sys/module/kvm/parameters/resched_ipi_unlock_latency_ns
+	echo 500000 > /sys/module/kvm/parameters/resched_ipi_unlock_latency_ns
 	echo $time_ns > /sys/module/kvm/parameters/resched_ipi_cosched_tslice_ns
-	echo $time_ns > /sys/module/kvm/parameters/tlb_shootdown_latency_ns
+	#echo $time_ns > /sys/module/kvm/parameters/tlb_shootdown_latency_ns
+	echo 500000 > /sys/module/kvm/parameters/tlb_shootdown_latency_ns
 
 	echo "mcsched on w/ $time_ns"
 fi

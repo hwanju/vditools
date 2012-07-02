@@ -70,7 +70,7 @@ set key invert reverse Left width -1 outside
 set size 1.5,1
 #set xlabel 'Workloads'
 set ylabel 'Elapsed time (sec)' 
-set yrange [0:450]
+set yrange [0:]
 set xtics 0,10
 set xtics nomirror
 set xtic rotate by -45
