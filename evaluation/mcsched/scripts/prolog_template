@@ -7,6 +7,8 @@ GROUP_PATH=()
 GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8 g9 g10)
 VM_LIST=(ubuntu1104-1 ubuntu1104-2 ubuntu1104-3 ubuntu1104-4 ubuntu1104-5 ubuntu1104-6 ubuntu1104-7 ubuntu1104-8 win7_64bit-1 win7_64bit-2)
 VM_PID=()
+NR_CPUS=`cat /proc/cpuinfo | grep processor | wc -l`
+VM_SHARES=$(( $NR_CPUS * 1024 ))
 
 /bin/echo $IMBALANCE > /proc/sys/kernel/balsched_load_imbalance_pct
 
@@ -20,6 +22,7 @@ do
 	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
 	/bin/echo $BALSCHED > ${GROUP_PATH[i]}/cpu.balsched
 	/bin/echo $IPISCHED > ${GROUP_PATH[i]}/cpu.ipisched
+	/bin/echo $VM_SHARES > ${GROUP_PATH[i]}/cpu.shares
 
 	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
         if [ "$pid" != "" ]; then
