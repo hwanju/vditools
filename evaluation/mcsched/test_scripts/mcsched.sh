@@ -63,6 +63,8 @@ for workload in $workload_list; do
 
 			if [ $(echo $mode | grep 'fairbal') ]; then
 				./test_scripts/init_mcsched.sh 1 $time_ns
+			elif [ $(echo $mode | grep 'singlepin') ]; then
+				./test_scripts/init_mcsched.sh 1 $time_ns
 			else
 				./test_scripts/init_mcsched.sh 0
 			fi

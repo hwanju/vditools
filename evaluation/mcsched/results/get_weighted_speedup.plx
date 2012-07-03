@@ -88,7 +88,8 @@ foreach $wname (sort keys %avg) {
 		$w2_speedup = $avg{$wname}{$mode}[1] ? $solorun_time{$w2} / $avg{$wname}{$mode}[1] : 0;
 		$weigted_speedup = $w1_speedup + $w2_speedup;
 		#printf "%d(=%d+%d)\t", $avg{$wname}{$mode}[0] + $avg{$wname}{$mode}[1], $avg{$wname}{$mode}[0], $avg{$wname}{$mode}[1];
-		printf "%.2lf(=%.2lf+%.2lf)\t", $weigted_speedup, $w1_speedup, $w2_speedup;
+		$unfairness = abs($w1_speedup - $w2_speedup);
+		printf "%.2lf(=%.2lf+%.2lf),%.2lf\t", $weigted_speedup, $w1_speedup, $w2_speedup, $unfairness;
 	}
 	print "\n";
 }
