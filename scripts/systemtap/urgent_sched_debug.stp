@@ -9,7 +9,6 @@ global vcpu_list
 global se_pid
 global se_vcpu
 global running
-global tlb_ipi_recv_time_us
 
 global verbose
 global debug_level
@@ -17,17 +16,13 @@ global warn_level
 //global err_level
 
 global resched_ipi_unlock_latency_us
-global tlb_shootdown_latency_us
 
 probe begin {
 	resched_ipi_unlock_latency_us = $1 / 1000
-	tlb_shootdown_latency_us = $2 / 1000
-	verbose = $3
+	verbose = $2
 
 	printf("# resched_ipi_unlock_latency_us=%d\n", 
 				resched_ipi_unlock_latency_us)
-	printf("# tlb_shootdown_latency_us=%d\n", 
-				tlb_shootdown_latency_us)
 	printf("# verbose=%d\n", verbose)
 	debug_level = 3
 	warn_level = 2
@@ -117,7 +112,7 @@ probe kernel.trace("kvm_apic") {
 	}
 }
 probe kernel.trace("kvm_apic_eoi") {
-	printf("%d EOI d%d_v%d-p%d v=%x\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $vector)
+	printf("%d EOI d%d_v%d-p%d v=%x c=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $vector, $p->se->pending_urgent_events->counter)
 }
 probe kernel.function("set_urgent_task") {
 	if ($p->pid in vcpu_list) {
@@ -146,14 +141,6 @@ probe kernel.function("set_urgent_entity") {
 			$se->urgent_node->next != &$se->urgent_node ? $se->urgent_tslice / 1000 : 0,
 			$se->cfs_rq->rq->hrtick_timer->state
 		)
-	/* trick: tlb_shootdown_latency_us MUST be different
-	 * from resched_ipi_unlock_latency_us */
-	if (!$se->my_q && se_pid[$se] && tlb_shootdown_latency_us == ($tslice / 1000)) {
-		if (running[se_pid[$se]]) 
-			tlb_ipi_recv_time_us[se_pid[$se]] = gettimeofday_us()
-		else
-			tlb_ipi_recv_time_us[se_pid[$se]] = -1
-	}
 }
 probe kernel.function("check_need_hrtick").return {
 	printf("%d CH p%d %d\n", gettimeofday_us(), cpu(), $return)
@@ -251,22 +238,6 @@ probe __scheduler.ctxswitch.tp {
 					)
 				}
 			}
-			if (tlb_ipi_recv_time_us[prev_tid] > 0) {
-				latency = cur_time_us - tlb_ipi_recv_time_us[prev_tid]
-				if (latency < tlb_shootdown_latency_us) {
-					printf("%d ## warn: TLB d%d_v%d-p%d (lat=%d rt=%d prev_u=%d next_u=%d ts=%d)\n",
-							cur_time_us, 
-							$prev->tgid, 
-							vcpu_list[$prev->pid],
-							cpu(),
-							latency,
-							($prev->se->sum_exec_runtime - $prev->se->urgent_sum_exec_runtime) / 1000,
-							$prev->se->urgent,
-							$next->se->urgent,
-							$prev->se->urgent_tslice / 1000
-					)
-				}
-			}
 		}
 		// trick because &$next->se cannot be referenced
 		se = @cast($next->se->cfs_rq, "cfs_rq")->curr
@@ -278,10 +249,6 @@ probe __scheduler.ctxswitch.tp {
 		resched_ipi_xmit_time_us[next_tid] = 0
 		resched_stat[next_tid] = 0
 
-		if (tlb_ipi_recv_time_us[next_tid] == -1)
-			tlb_ipi_recv_time_us[next_tid] = cur_time_us
-
-		tlb_ipi_recv_time_us[prev_tid] = 0
 
 		running[prev_tid] = 0
 		running[next_tid] = 1
