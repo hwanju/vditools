@@ -10,7 +10,7 @@ $clean = $templ eq "-c" ? 1 : 0;
 	"fairbal_0pct"		=> 3,	
 	"fairbal_100pct"	=> 3
 );
-@submodes = qw( orig lhp perf prof debug );
+@submodes = qw( orig lhp perf prof );
 foreach $m (keys %mode_to_id) {
 	$balsched = $mode_to_id{$m};
 	$ipisched = $m =~ /fairbal/ ? 1 : 0;

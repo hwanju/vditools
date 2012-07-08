@@ -8,5 +8,6 @@ all:
 	./gen_hetero_workloads.sh 1 2 x264
 	./gen_hetero_workloads.sh 1 4 x264
 	./gen_hetero_workloads.sh 1 7 x264
+	./gen_hetero_workloads.sh 2 4 x264
 clean: 
 	rm -f *@*

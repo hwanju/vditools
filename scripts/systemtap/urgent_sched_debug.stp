@@ -64,7 +64,7 @@ probe begin {
 
 	ut_op[6] = "req"
 	ut_arg[6, 0] = "ts"
-	ut_arg[6, 1] = "rt"	// urgent_runtime
+	ut_arg[6, 1] = "pe"	// pending_urgent_events
 	ut_arg[6, 2] = "ut"
 
 	ut_op[7] = "res"
@@ -79,7 +79,7 @@ probe begin {
 
 	ut_op[9] = "utm"
 	ut_arg[9, 0] = "dl"	// delay	
-	ut_arg[9, 1] = "rt"
+	ut_arg[9, 1] = "pe"
 	ut_arg[9, 2] = "ut"	// or 3==URGENT_EXPIRED
 
 	ut_op[10] = "ac1"
@@ -106,11 +106,11 @@ probe kernel.trace("kvm_apic_ipi") {
 			)
 	}
 }
-probe kernel.trace("kvm_apic") {
-	if ($rw == 1) {
-		printf("%d AW d%d_v%d-p%d r=%x v=%x\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
-	}
-}
+//probe kernel.trace("kvm_apic") {
+//	if ($rw == 1) {
+//		printf("%d AW d%d_v%d-p%d r=%x v=%x\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
+//	}
+//}
 probe kernel.trace("kvm_apic_eoi") {
 	printf("%d EOI d%d_v%d-p%d v=%x c=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $vector, $p->se->pending_urgent_events->counter)
 }
@@ -127,7 +127,7 @@ probe kernel.function("set_urgent_task") {
 }
 probe kernel.function("set_urgent_entity") {
 	if (verbose >= debug_level) 
-		printf("%d\t\t  UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d ts=%d:%d ht=%x\n",
+		printf("%d\t\t  UE d%d_v%d-p%d:t%d:q%d:c%d:e%d:f%d:p%d ts=%d:%d ht=%x\n",
 			gettimeofday_us(),
 			se_pid[$se],
 			$se in se_vcpu ? se_vcpu[$se] : -1,
@@ -137,6 +137,7 @@ probe kernel.function("set_urgent_entity") {
 			$se->cfs_rq->curr == $se,
 			$se->urgent_node->next == &$se->urgent_node,
 			$sync,
+			$se->pending_urgent_events->counter,
 			$tslice / 1000,
 			$se->urgent_node->next != &$se->urgent_node ? $se->urgent_tslice / 1000 : 0,
 			$se->cfs_rq->rq->hrtick_timer->state

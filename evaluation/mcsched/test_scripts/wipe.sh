@@ -11,7 +11,7 @@ while [ $i -lt 3 ]; do
         killall -9 send_signal_64 > /dev/null 2>&1
         killall -9 pidstat > /dev/null 2>&1
         killall -9 perf > /dev/null 2>&1
-        killall -9 stapio > /dev/null 2>&1
+        #killall -9 stapio > /dev/null 2>&1
         i=$(( $i + 1 ))
         sleep 1
 done

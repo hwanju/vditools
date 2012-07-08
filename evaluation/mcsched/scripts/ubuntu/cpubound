@@ -5,3 +5,27 @@ cpulist=`grep processor /proc/cpuinfo | awk '{print $3}'`
 for i in $cpulist; do 
         /root/cpulimit/cpubound &
 done
+
+while true; do
+	sleep 10
+	# query to host whether the minimum number of iterations are ended
+	SEND_QUERY_SIGNAL
+
+	# get a message from host
+	while [ 1 ]
+	do
+		if [ -e /tmp/query ]
+		then
+			break
+		fi
+		sleep 0.01
+	done
+
+	# (stop or repeat)
+	reply=$(cat /tmp/query)
+	if [ "$reply" = "stop" ]
+	then
+		break
+	fi
+	rm /tmp/query
+done

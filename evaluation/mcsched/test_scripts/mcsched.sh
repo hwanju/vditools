@@ -73,6 +73,8 @@ for workload in $workload_list; do
 			rm -f config.pyc
 			if [ $mixed == "1" ]; then
 				ln -sf config/config_1ubuntu1104+7ubuntu1104up-mcsched.py config.py
+			elif [ $mixed == "2" ]; then
+				ln -sf config/config_2ubuntu1104+6ubuntu1104up-mcsched.py config.py
 			elif [ $(cat $workload_path | grep 'windows/interactive') ]; then
 				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched.py config.py
 			else

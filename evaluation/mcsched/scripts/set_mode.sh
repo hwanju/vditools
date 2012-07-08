@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ $# -ne 1 ]; then
-	echo "Usage: $0 <mode (orig, perf, lhp, lhpipi)>"
+	echo "Usage: $0 <mode (orig, perf, lhp)>"
         exit
 fi
 mode=$1

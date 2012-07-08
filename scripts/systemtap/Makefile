@@ -29,3 +29,6 @@ balsched_prof: balsched_prof.stp
 
 trace_ipi: trace_ipi.stp
 	stap -v -r `uname -r` $@.stp -m $@
+
+trace_sched: trace_sched.stp
+	stap -v -r `uname -r` $@.stp -m $@

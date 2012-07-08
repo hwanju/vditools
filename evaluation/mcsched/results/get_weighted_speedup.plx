@@ -61,9 +61,11 @@ foreach $res_file (@res_files) {
 		## print "$mode $w1: total=$total{$w1} n=$n{$w1} last=$last{$w1}\n";
 		## print "$mode $w2: total=$total{$w2} n=$n{$w2} last=$last{$w2}\n";
 
-		$w = $n{$w1} > $n{$w2} ? $w1 : $w2;
-		$total{$w} -= $last{$w};
-		$n{$w}--;
+		if ($n{$w1} != $n{$w2}) {
+			$w = $n{$w1} > $n{$w2} ? $w1 : $w2;
+			$total{$w} -= $last{$w};
+			$n{$w}--;
+		}
 
 		## printf "$mode $w1: total=$total{$w1} n=$n{$w1} avg=%d\n", $total{$w1} / $n{$w1};
 		## printf "$mode $w2: total=$total{$w2} n=$n{$w2} avg=%d\n", $total{$w2} / $n{$w2};
@@ -75,7 +77,7 @@ foreach $res_file (@res_files) {
         }
 }
 
-printf "%-30s";
+printf "%-30s", "";
 foreach $mode (sort keys %mode_map) {
         print "$mode\t";
 }
