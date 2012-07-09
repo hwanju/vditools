@@ -7,7 +7,7 @@ $corun_dir   = shift(@ARGV);
 
 $plot_name = $corun_dir;
 $plot_name =~ s/-\w+\/?$//;
-$plot_name .= "-$mode";
+$plot_name .= "-$mode-user_kernel_time";
 open OFD, ">$plot_name.dat";
 
 @res_files = `ls $solorun_dir/*\@baseline.result`;
@@ -77,11 +77,11 @@ set xtics nomirror
 set xtic rotate by -45
 set xtics ( 'blackscholes' 0, 'bodytrack' 3, 'canneal' 6, 'dedup' 9, 'facesim' 12, 'ferret' 15, 'fluidanimate' 18, 'freqmine' 21, 'raytrace' 24, 'streamcluster' 27, 'swaptions' 30, 'vips' 33, 'x264' 36 )
 #set ytics 0,20
-set label 'Solorun' at 0, 108
+set label 'Solorun' at 0, 112
 set style arrow 1 head nofilled ls 1 
-set arrow from 2.5, 105 to 3, 100 as 1
-set label 'Corun' at 4.5, 108
-set arrow from 4.5, 105 to 4, 100 as 1
+set arrow from 2.5, 108 to 3, 100 as 1
+set label 'Corun' at 4.5, 112
+set arrow from 4.5, 108 to 4, 100 as 1
 set grid y
 set style data histograms
 set style histogram rowstacked

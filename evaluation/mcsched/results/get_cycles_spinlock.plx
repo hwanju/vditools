@@ -9,10 +9,7 @@ foreach $f (@flist) {
         open FD, $f;
         $sum = 0;
         while(<FD>) {
-                if(/spin_lock/ ||
-		   /native_read_tsc/ ||	# the following three are for debug_spinlock!
-		   /__delay/ ||
-		   /delay_tsc/ ) {
+                if(/spin_lock/) {	# for debug spinlock || /native_read_tsc/ ||	/__delay/ || /delay_tsc/ ) {
                         @cols = split(/\s+/);
                         $pct = $cols[1];
                         $pct =~ s/%//g;
