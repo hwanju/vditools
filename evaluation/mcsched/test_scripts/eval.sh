@@ -30,8 +30,8 @@ for workload in $workload_list; do
 		seq=1
 	fi
 	if [ $seq -eq 0 ]; then
-		echo "params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100" 
+		params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100
 	else
-		echo "mixed=1 params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100" 
+		mixed=1 params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100
 	fi
 done
