@@ -63,6 +63,7 @@ $xtics
 #set ytics 0,20
 set ytics 0,10
 set ytics nomirror
+set y2tics 0,5
 set style data histograms
 set style histogram rowstacked
 set grid y
