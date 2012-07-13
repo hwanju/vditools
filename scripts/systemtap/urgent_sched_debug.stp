@@ -106,11 +106,12 @@ probe kernel.trace("kvm_apic_ipi") {
 			)
 	}
 }
-//probe kernel.trace("kvm_apic") {
-//	if ($rw == 1) {
-//		printf("%d AW d%d_v%d-p%d r=%x v=%x\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
-//	}
-//}
+probe kernel.trace("kvm_apic") {
+	off = $reg & ~0xf
+	if ($rw == 0 && off == 0x300) {	// APIC_ICR
+		printf("%d ICR d%d_v%d-p%d r=%d v=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
+	}
+}
 probe kernel.trace("kvm_apic_eoi") {
 	printf("%d EOI d%d_v%d-p%d v=%x c=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $vector, $p->se->pending_urgent_events->counter)
 }
@@ -257,6 +258,17 @@ probe __scheduler.ctxswitch.tp {
 }
 probe module("kvm").function("kvm_arch_vcpu_load") {
     vcpu_list[tid()] = $vcpu->vcpu_id
+}
+probe kernel.trace("kvm_lock_holder") {
+	if ($point_flag == 0x01 	/* involuntary preemption */
+	    && $p->on_rq) {
+	    /*&& !$p->se->urgent && $p->on_rq) {*/
+		if ($depth) { 
+			printf("%d LHP d%d_v%d-p%d %x %x %x %x ip=%x ci=%x u%d\n", 
+				gettimeofday_us(), $p->tgid, vcpu_list[$p->pid], cpu(),
+				$eip1, $eip2, $eip3, $eip4, $guest_ip, $caller_info, $user_mode)
+		}
+	}
 }
 probe end {
 	printf("urgent event stat\n")

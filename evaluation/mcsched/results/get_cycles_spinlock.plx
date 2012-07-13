@@ -1,11 +1,10 @@
 #!/usr/bin/perl -w
 
-@flist = `ls *.guest.perf`;
+$dir = @ARGV ? shift(@ARGV) : ".";
+@flist = `ls $dir/*.guest.perf`;
 
 foreach $f (@flist) {
         chomp($f);
-        $workload = $1 if ($f =~ /1(\w+)/);
-        $mode = $1 if ($f =~ /@(\w+)\.guest/);
         open FD, $f;
         $sum = 0;
         while(<FD>) {
@@ -17,5 +16,6 @@ foreach $f (@flist) {
                 }
         }
         close FD;
-        print "$workload\@$mode\t$sum\n";
+	$f =~ s/\.guest\.perf$//g;
+        print "$f\t$sum\n";
 }

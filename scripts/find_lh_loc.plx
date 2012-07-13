@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 $coverage_line = 3;
-$vmlinux_path="/backup/vdikernel/vmlinux";
+$vmlinux_path="/backup/vdikernel-guest-lockholder/vmlinux";
 die "Usage: $0 <eip> [vmlinux path(=$vmlinux_path)]\n" unless @ARGV > 0;
 $eip = shift(@ARGV);
 $vmlinux_path = shift(@ARGV) if @ARGV;

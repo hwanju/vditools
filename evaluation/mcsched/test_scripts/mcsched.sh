@@ -28,15 +28,9 @@ workload_format=$1
 if [ $(echo $workload_format | grep parsec) ]; then
 	workload_list=$parsec_workloads
 	resdir=results/mcsched/_$workload_format
-	if [ "$time_ns" != "" ]; then
-		resdir=$resdir-${time_ns}ns
-	fi
 elif [ $(echo $workload_format | grep interactive) ]; then
 	workload_list=$interactive_workloads
 	resdir=results/mcsched/_$workload_format
-	if [ "$time_ns" != "" ]; then
-		resdir=$resdir-${time_ns}ns
-	fi
 else
 	workload_list=$(echo $workload_format | sed 's/+.*//g')
 	workload_list=$(echo $workload_list | sed 's/^[0-9]*//g')
@@ -58,13 +52,18 @@ for workload in $workload_list; do
 		workload_name=$workload_name@$mode
 		workload_path=workloads/mcsched/$workload_name
 
+		if [ "$params" != "" ]; then
+			workload_name=$workload_name-$params
+		fi
+		workload_name=$workload_name$res_postfix
+
 		if [ -e $workload_path ]; then
 			./test_scripts/wipe.sh
 
 			if [ $(echo $mode | grep 'fairbal') ]; then
-				./test_scripts/init_mcsched.sh 1 $time_ns
+				./test_scripts/init_mcsched.sh 1 $params
 			elif [ $(echo $mode | grep 'singlepin') ]; then
-				./test_scripts/init_mcsched.sh 1 $time_ns
+				./test_scripts/init_mcsched.sh 1 $params
 			else
 				./test_scripts/init_mcsched.sh 0
 			fi
@@ -78,7 +77,7 @@ for workload in $workload_list; do
 			elif [ $(cat $workload_path | grep 'windows/interactive') ]; then
 				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched.py config.py
 			else
-				ln -sf config/config_8ubuntu1104-mcsched$postfix.py config.py
+				ln -sf config/config_8ubuntu1104-mcsched$cfg_postfix.py config.py
 			fi
 
 			# additional option
@@ -89,10 +88,15 @@ for workload in $workload_list; do
 			iter_opt=""
 			if [ $nr_iter != "0" ]; then
 				iter_opt="-i $nr_iter"
+			else
+				iter_opt="-q no_iter"
 			fi
 			private_opt=""
-			if [ "$private_arg1" != "" ]; then
-				private_opt="-p $private_arg1"
+			if [ "$arg1" != "" ]; then
+				private_opt="-p $arg1"
+			fi
+			if [ "$arg2" != "" -a "$iter_opt" != "-q no_iter" ]; then
+				private_opt="$private_opt -q $arg2"
 			fi
 			cmd="./skbench.py $opt $iter_opt $private_opt -w $workload_path start-stop"
 			echo $cmd

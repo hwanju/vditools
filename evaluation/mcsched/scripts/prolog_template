@@ -24,6 +24,10 @@ do
 	/bin/echo $IPISCHED > ${GROUP_PATH[i]}/cpu.ipisched
 	/bin/echo $VM_SHARES > ${GROUP_PATH[i]}/cpu.shares
 
+	if [ "$PRIVATE_ARG2" == "solo_ipisched" ]; then
+		IPISCHED=0
+	fi
+
 	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
         if [ "$pid" != "" ]; then
                 /bin/echo $pid > ${GROUP_PATH[i]}/cgroup.procs
@@ -57,5 +61,22 @@ done
 
 debug_module="$PRIVATE_ARG1"
 if [ -e "$debug_module" ]; then
+	#if [ $(basename $debug_module | grep 'lhp') ]; then
+	echo 1 > /sys/module/kvm/parameters/trace_lock_holder
+	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
+	echo $pid > /sys/module/kvm/parameters/trace_lock_holder_tgid
+	#fi
 	staprun $debug_module > /tmp/kvm.debug &
+fi
+if [ "$PRIVATE_ARG2" == "perf" ]; then
+	# perf
+	ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
+	ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
+	perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -p $pid -o /tmp/kvm.perf.data &
+elif [ "$PRIVATE_ARG2" == "perfall" ]; then
+	# perfall
+	ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
+	ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+	perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -a -o /tmp/kvm.perf.data &
 fi

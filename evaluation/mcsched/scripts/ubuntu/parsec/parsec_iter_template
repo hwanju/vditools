@@ -58,6 +58,10 @@ do
         cat /tmp/schedstat.log >> /tmp/parsec.result
 	cat /tmp/pidstat.log >> /tmp/parsec.result
 
+	if [ "$PRIVATE_ARG2" == "no_iter" ]; then
+		break
+	fi
+
 	# query to host whether the minimum number of iterations are ended
 	SEND_QUERY_SIGNAL
 

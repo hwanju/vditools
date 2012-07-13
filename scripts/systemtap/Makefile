@@ -32,3 +32,6 @@ trace_ipi: trace_ipi.stp
 
 trace_sched: trace_sched.stp
 	stap -v -r `uname -r` $@.stp -m $@
+
+trace_lhp: trace_lhp.stp
+	stap -v -r `uname -r` $@.stp -m $@
