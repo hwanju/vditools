@@ -18,7 +18,8 @@ else
 	echo "mode is invalid!"
 	exit
 fi
-workload_list="1parsec+2x264 1parsec+4x264 1parsec+1streamcluster 1parsec+1freqmine 1parsec+1dedup"
+#workload_list="1parsec+2x264 1parsec+4x264 1parsec+1streamcluster 1parsec+1freqmine 1parsec+1dedup"
+workload_list="1parsec+2x264 1parsec+4x264 1parsec+1streamcluster 1parsec+1freqmine"
 if [ "$1" != "all" ]; then
 	workload_list="$*"
 fi

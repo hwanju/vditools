@@ -54,7 +54,7 @@ set xlabel 'Urgent time slice (usec)'
 set ylabel 'Average execution time (sec)' 
 set y2label 'CPU cycles (%)' 
 set xrange [-1:$i]
-set yrange [0:]
+set yrange [30:]
 set y2range [0:$max_cycles]
 #set xtics 0,10
 set xtics nomirror
@@ -68,7 +68,7 @@ set style data histograms
 set style histogram rowstacked
 set grid y
 set boxwidth 0.40
-plot '$plot_name.dat' u 2 t 'TLB shootdown' fs solid 0.50 lt 1 axis x1y2, '' u 3 t 'Lock spinning' fs pattern 4 lt 1 axis x1y2, '' u 4:5:6 t 'Execution time' w yerrorlines lt 1 pt 4 lw 2"; 
+plot '$plot_name.dat' u 2 t 'CPU cycles for TLB shootdown' fs solid 0.50 lt 1 axis x1y2, '' u 3 t 'CPU cycles for lock spinning' fs pattern 4 lt 1 axis x1y2, '' u 4:5:6 t 'Average execution time' w yerrorlines lt 1 pt 4 lw 2"; 
 close OFD;
 
 system("gnuplot $plot_name.plt");

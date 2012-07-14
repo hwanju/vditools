@@ -92,7 +92,7 @@ set terminal post 'Times-Roman' 24
 set output '$plot_name.eps'
 set key invert reverse left Left width -1
 set xlabel 'Urgent allowance (msec)'
-set ylabel 'Slowdown to solorun' 
+set ylabel 'Slowdown (relative to solorun)' 
 set y2label 'CPU cycles (%)' 
 set xrange [-1:$i]
 set yrange [0:$max_slowdown]
