@@ -1,0 +1,33 @@
+#!/usr/bin/stap -v
+
+global lhp_eip
+#global lhp_cur_eip
+#global monitored_pid
+
+probe kernel.trace("kvm_lock_holder") {
+	if ($point_flag == 0x01 	/* involuntary preemption */
+	    && $p->on_rq) {
+	    /*&& !$p->se->urgent && $p->on_rq) {*/
+		lhp_eip[$depth, $eip1, $eip2, $eip3, $eip4, $caller_info] <<< 1 
+		#monitored_pid[pid()] = 1
+		#if ($depth) 
+		#	lhp_cur_eip[$depth, $eip1, $eip2, $eip3, $eip4, $guest_ip, $user_mode] <<< 1 
+	}
+}
+
+probe end {
+	print ("# lhp\n")
+        foreach ([depth, eip1, eip2, eip3, eip4, caller_info] in lhp_eip-) {
+                printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\n", 
+			depth, eip1, eip2, eip3, eip4, 
+			@count(lhp_eip[depth, eip1, eip2, eip3, eip4, caller_info]), 
+			caller_info)
+        }
+	#print ("# lhp_cur_eip\n")
+        #foreach ([depth, eip1, eip2, eip3, eip4, guest_ip, user_mode] in lhp_cur_eip-) {
+        #        printf ("%d\t%x\t%x\t%x\t%x\t%d\t%x\t%d\n", 
+	#		depth, eip1, eip2, eip3, eip4, 
+	#		@count(lhp_cur_eip[depth, eip1, eip2, eip3, eip4, guest_ip, user_mode]), 
+	#		guest_ip, user_mode)
+        #}
+}

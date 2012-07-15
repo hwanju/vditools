@@ -1,25 +1,27 @@
 #!/bin/sh
 
 if [ $# -lt 2 ]; then
-	echo "Usage: $0 <mode: nouvf, tlbco, tlbco+reschedpd, tlbco+reschedpd+reschedco> workload ..."
+	echo "Usage: $0 <mode: nouvf, reschedpd, tlbco, reschedpd+tlbco, reschedpd+tlbco+reschedco> workload ..."
 	exit
 fi
 mode=$1
 shift
 if [ "$mode" == "nouvf" ]; then
 	eval_params="0:0:0:0:0:0"
+elif [ "$mode" == "reschedpd" ]; then
+	eval_params="1:500000:18000000:0:500000:0"
 elif [ "$mode" == "tlbco" ]; then
 	eval_params="1:500000:18000000:1:0:0"
-elif [ "$mode" == "tlbco+reschedpd" ]; then
+elif [ "$mode" == "reschedpd+tlbco" ]; then
 	eval_params="1:500000:18000000:1:500000:0"
-elif [ "$mode" == "tlbco+reschedpd+reschedco" ]; then
+elif [ "$mode" == "reschedpd+tlbco+reschedco" ]; then
 	eval_params="1:500000:18000000:1:500000:500000"
 else
 	echo "mode is invalid!"
 	exit
 fi
 #workload_list="1parsec+2x264 1parsec+4x264 1parsec+1streamcluster 1parsec+1freqmine 1parsec+1dedup"
-workload_list="1parsec+2x264 1parsec+4x264 1parsec+1streamcluster 1parsec+1freqmine"
+workload_list="1parsec+2x264 1parsec+4x264 1parsec+1freqmine 1parsec+1dedup"
 if [ "$1" != "all" ]; then
 	workload_list="$*"
 fi
