@@ -20,6 +20,11 @@ else
 	echo "mode is invalid!"
 	exit
 fi
+ple_gap=`cat /sys/module/kvm_intel/parameters/ple_gap`;
+if [ $ple_gap -gt 0 ]; then
+	echo 2 > /sys/module/kvm/parameters/ple_aware_ipisched
+	echo "ple is on: ple-aware ipisched enabled"
+fi
 #workload_list="1parsec+2x264 1parsec+4x264 1parsec+1streamcluster 1parsec+1freqmine 1parsec+1dedup"
 workload_list="1parsec+2x264 1parsec+4x264 1parsec+1freqmine 1parsec+1dedup"
 if [ "$1" != "all" ]; then

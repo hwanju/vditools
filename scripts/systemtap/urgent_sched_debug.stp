@@ -111,6 +111,9 @@ probe kernel.trace("kvm_apic") {
 	if ($rw == 0 && off == 0x300) {	// APIC_ICR
 		printf("%d ICR d%d_v%d-p%d r=%d v=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
 	}
+	else if ($rw == 1 && off == 0xB0) { // APIC_EOI
+		printf("%d EW d%d_v%d-p%d r=%d v=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $reg, $val)
+	}
 }
 probe kernel.trace("kvm_apic_eoi") {
 	printf("%d EOI d%d_v%d-p%d v=%x c=%d\n", gettimeofday_us(), pid(), vcpu_list[tid()], cpu(), $vector, $p->se->pending_urgent_events->counter)
@@ -212,6 +215,13 @@ probe kernel.trace("sched_urgent_entity") {
 		}
 	}
 }
+probe kernel.function("yield_to").return {
+	if ($return) {
+		printf("%d YT d%d_v%d-p%d->d%d_v%d-p%d:u%d\n", gettimeofday_us(),
+				pid(), tid() in vcpu_list ? vcpu_list[tid()] : tid(), cpu(), 
+				$p->tgid, $p->pid in vcpu_list ? vcpu_list[$p->pid] : $p->pid, $p->se->cfs_rq->rq->cpu, $p->se->urgent)
+	}
+}
 probe __scheduler.ctxswitch.tp {
 	if ((prev_tid in vcpu_list) || (next_tid in vcpu_list)) {
 		cur_time_us = gettimeofday_us()
@@ -268,6 +278,11 @@ probe kernel.trace("kvm_lock_holder") {
 				gettimeofday_us(), $p->tgid, vcpu_list[$p->pid], cpu(),
 				$eip1, $eip2, $eip3, $eip4, $guest_ip, $caller_info, $user_mode)
 		}
+	}
+	else {
+		printf("%d LI pf=%x d%d_v%d-p%d %x %x %x %x ip=%x ci=%x u%d\n", gettimeofday_us(), 
+				$point_flag, $p->tgid, vcpu_list[$p->pid], cpu(),
+				$eip1, $eip2, $eip3, $eip4, $guest_ip, $caller_info, $user_mode)
 	}
 }
 probe end {

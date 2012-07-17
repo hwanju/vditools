@@ -35,3 +35,6 @@ trace_sched: trace_sched.stp
 
 trace_lhp: trace_lhp.stp
 	stap -v -r `uname -r` $@.stp -m $@
+
+trace_lock_holder_ple: trace_lock_holder_ple.stp
+	stap -v -r `uname -r` $@.stp -m $@
