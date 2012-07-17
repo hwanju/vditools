@@ -11,6 +11,7 @@ tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
+i=0
 echo > /tmp/parsec.result
 while [ 1 ]
 do
@@ -25,6 +26,15 @@ do
         if [ -e /proc/lock_stat ]; then
                 echo 0 > /proc/lock_stat
         fi
+	# check and run futex profiling
+	if [ "$PRIVATE_ARG2" == "futex" -a $i -eq 0 -a -e /root/futex_prof.ko ]; then
+		procname=$PACKAGE
+		if [ "$PACKAGE" == "raytrace" ]; then
+			procname=rtview
+		fi
+		echo "futex_wait_stat" > /tmp/futex_prof.log
+		staprun /root/futex_prof.ko | grep $procname >> /tmp/futex_prof.log &
+	fi
 
         echo "start_stat" > /tmp/stat.log
         cat /proc/stat >> /tmp/stat.log
@@ -33,6 +43,11 @@ do
 	pidstat -u 10 > /tmp/pidstat.log &
         
         bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
+
+	# finish futex profiling if needed
+	if [  "$PRIVATE_ARG2" == "futex" -a $i -eq 0 ]; then
+		killall -15 stapio
+	fi
 
 	killall -9 pidstat
         echo "end_stat" >> /tmp/stat.log
@@ -82,6 +97,12 @@ do
 		break
 	fi
 	rm /tmp/query
+	i=$(( $i + 1 ))
 done
+# futex result
+if [ "$PRIVATE_ARG2" == "futex" ]; then
+	sleep 10
+	cat /tmp/futex_prof.log >> /tmp/parsec.result
+fi
 
 cat /tmp/parsec.result | TO_HOST

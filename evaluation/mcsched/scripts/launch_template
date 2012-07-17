@@ -32,9 +32,30 @@ WAIT_START_SIGNAL
 i=1
 echo -n > $latency_dir/WORKLOAD_NAME.latency
 echo -n > $out_dir/WORKLOAD_NAME.out
-while [ $i -le $NR_ITER ]
+#while [ $i -le $NR_ITER ]
+while [ 1 ]
 do
 	spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2>> $latency_dir/WORKLOAD_NAME.latency >> $out_dir/WORKLOAD_NAME.out
 	let i=i+1
         sleep 2
+	# query to host whether the minimum number of iterations are ended
+	SEND_QUERY_SIGNAL
+
+	# get a message from host
+	while [ 1 ]
+	do
+		if [ -e /tmp/query ]
+		then
+			break
+		fi
+		sleep 0.01
+	done
+
+	# (stop or repeat)
+	reply=$(cat /tmp/query)
+	if [ "$reply" = "stop" ]
+	then
+		break
+	fi
+	rm /tmp/query
 done
