@@ -86,7 +86,7 @@ set xtics nomirror
 $xtics
 #set ytics 0,20
 set grid y
-plot '$plot_name.dat' u 2:3:4 t 'bodytrack' w yerrorlines lw 2 lt 1 pt 1, '' u 2:5:6 t 'facesim' w yerrorlines lw 2 lt 2 pt 4, '' u 2:7:8 t 'streamcluster' w yerrorlines lw 2 lt 4 pt 7
+plot '$plot_name.dat' u 2:3:4 t 'bodytrack' w yerrorlines lw 2 lt 1 pt 1 ps 1.5, '' u 2:5:6 t 'facesim' w yerrorlines lw 2 lt 2 pt 4 ps 1.5, '' u 2:7:8 t 'streamcluster' w yerrorlines lw 2 lt 4 pt 7 ps 1.5
 ";
 close OFD;
 

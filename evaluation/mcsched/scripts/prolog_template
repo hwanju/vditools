@@ -64,11 +64,7 @@ done
 debug_module="$PRIVATE_ARG1"
 if [ -e "$debug_module" ]; then
 	#if [ $(basename $debug_module | grep 'lhp') ]; then
-	if [ $(echo $PRIVATE_ARG2 | grep 'perf') ]; then
-		echo 1 > /sys/module/kvm/parameters/trace_lock_holder
-	else
-		echo $PRIVATE_ARG2 > /sys/module/kvm/parameters/trace_lock_holder
-	fi
+	echo 1 > /sys/module/kvm/parameters/trace_lock_holder
 
 	echo $pid > /sys/module/kvm/parameters/trace_lock_holder_tgid
 	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
