@@ -13,7 +13,7 @@ $clean = $templ eq "-c" ? 1 : 0;
 @submodes = qw( orig lhp perf prof );
 foreach $m (keys %mode_to_id) {
 	$balsched = $mode_to_id{$m};
-	$ipisched = $m =~ /fairbal/ ? 1 : 0;
+	$ipisched = $m =~ /fairbal/ ? 7 : 0;
 	$imbalance = 0;
 	$imbalance = $1 if ($m =~ /(\d+)/);
 	`rm -f ${m}_prolog*` if $clean;

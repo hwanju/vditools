@@ -5,6 +5,7 @@ $filter = @ARGV ? shift(@ARGV) : "";
 printf "%-15suser\tnice\tsystem\tidle\tiowait\tirq\tsoftirq\tsteal\tguest\tgnice\n", "workload";
 foreach $fn (@res_files) {
 	open FD, $fn;
+	print "$fn\t";
 	$workload = $1 if ($fn =~ /1(\w+)(@|\+)/);
 	$first = 1;
 	while(<FD>) {

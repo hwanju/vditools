@@ -33,7 +33,8 @@ do
 			procname=rtview
 		fi
 		echo "futex_wait_stat" > /tmp/futex_prof.log
-		staprun /root/futex_prof.ko | grep $procname >> /tmp/futex_prof.log &
+		#staprun /root/futex_prof.ko | grep $procname >> /tmp/futex_prof.log &
+		staprun /root/futex_prof.ko >> /tmp/futex_prof.log 2>&1 &
 	fi
 
         echo "start_stat" > /tmp/stat.log

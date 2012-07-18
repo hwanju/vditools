@@ -26,6 +26,8 @@ do
 
 	if [ "$PRIVATE_ARG2" == "solo_ipisched" ]; then
 		IPISCHED=0
+	elif [ "$PRIVATE_ARG2" == "solo_reschedco" ]; then
+		IPISCHED=3
 	fi
 
 	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
