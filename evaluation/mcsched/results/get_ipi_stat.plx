@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
-die "Usage: $0 <linux|windows> <trace file list>\n" unless @ARGV > 1;
+die "Usage: $0 [-t] <linux|windows> <trace file list>\n" unless @ARGV > 1;
+$tabular = $ARGV[0] eq "-t" ? shift(@ARGV) : 0;
 $os = shift(@ARGV);
 
 if ($os eq "linux") {
@@ -15,9 +16,15 @@ if ($os eq "linux") {
 }
 
 print "# nr_ipi/sec\n";
+print "Application";
 foreach $fn (@ARGV) {
 	$workload = $1 if ($fn =~ /1(\w+)@/);
-	print "\t$workload";
+	if ($tabular) {
+		print "\t& $workload";
+	}
+	else {
+		print "\t$workload";
+	}
 	push(@workload_list, $workload);
 	open FD, $fn;
 	$start_time_us = 0;
@@ -35,12 +42,28 @@ foreach $fn (@ARGV) {
 	}
 	$time_sec{$workload} = ($time_us - $start_time_us) / 1000000;
 }
-print "\n";
+if ($tabular) {
+	print " \\\\ \\hline \\hline \n";
+}
+else {
+	print "\n";
+}
 foreach $vec (keys %ipi) {
 	print "$vec";
 	foreach $workload (@workload_list) {
 		$nr_ipi = defined($ipi{$vec}{$workload}) ? $ipi{$vec}{$workload} : 0;
-		printf "\t%d", $nr_ipi / $time_sec{$workload};
+		if ($tabular) {
+			printf "\t& %d", $nr_ipi / $time_sec{$workload};
+		}
+		else {
+			printf "\t%d", $nr_ipi / $time_sec{$workload};
+		}
 	}
-	print "\n";
+	if ($tabular) {
+		print " \\\\ \\hline \n";
+	}
+	else {
+		print "\n";
+	}
 }
+

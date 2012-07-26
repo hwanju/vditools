@@ -72,6 +72,9 @@ $xtics = "set xtics (";
 $plot = "'$plot_name.dat'";
 $plot_first = 1;
 @fill_map = ("", "fs solid 0.70", "fs solid 0.15", "fs solid 0.15", "fs solid 0.15", "fs solid 0.15");
+@label_map = ("a", "b", "c", "d", "e");
+$label_idx = 0;
+$label_cmd = "";
 foreach $workload_fmt (sort keys %sum) {
 	if ($workload_fmt =~ /(\d+)(\w+)\+(\d+)(\w+)/) {
 		$guest_id = 1;
@@ -92,23 +95,32 @@ foreach $workload_fmt (sort keys %sum) {
 	}
 	foreach $mode (sort keys %{$sum{$workload_fmt}}) {
 		printf OFD "%-30s%-55s", $workload_fmt, $mode;
+		$weighted_speedup = 0;
 		foreach $guest_id (sort {$a <=> $b} keys %{$sum{$workload_fmt}{$mode}}) {
 			$nr_samples = $n{$workload_fmt}{$mode}{$guest_id};
 			$avg = $sum{$workload_fmt}{$mode}{$guest_id} / $nr_samples;
 			$sd = sqrt(($sqsum{$workload_fmt}{$mode}{$guest_id} / $nr_samples) - ($avg * $avg));
 			$speedup = $solorun_time{$workload_name[$guest_id]} / $avg;
+			$weighted_speedup += $speedup;
 			printf OFD "%-5.2lf%-7.2lf%-6.2lf%-3d\t", $speedup, $avg, $sd, $nr_samples;
-
 			if ($plot_first) {
 				$plot .= ", ''" unless $guest_id == 1;
 				$title = $guest_id == 1 ? "Main workload (at X-axis)" : "Corunner ($workload_name[$guest_id])";
 				$plot .= " u $speedup_idx t \"$title\" $fill_map[$guest_id] lt 1";
 				$speedup_idx += $speedup_step;
 			}
+			if ($workload_fmt =~ /1blackscholes/ && $guest_id != 1) {
+				$label_xpos = $label_idx - 0.5;
+				$label_ypos = $weighted_speedup + 0.07;
+				$label_cmd .= "set label '$label_map[$label_idx]' at $label_xpos, $label_ypos\n";
+				$label_idx++;
+			}
+
 		}
 		$plot_first = 0;
 		print OFD "\n";
 	}
+	
 	printf OFD "%-30s%-55s", "blank", "blank";
 	for (1 .. $nr_guests) {
 		printf OFD "%-5.2lf%-7.2lf%-6.2lf%-3d\t", 0, 0, 0, 0;
@@ -122,17 +134,17 @@ $xtics .= ")";
 open OFD, ">$plot_name.plt";
 print OFD "
 set terminal postscript eps enhanced monochrome
-set terminal post 'Times-Roman' 23
+set terminal post 'Times-Roman' 22
 set output '$plot_name.eps'
-set size 1.2,1
+set size 1.4,1
 set key invert reverse left box Left width -1
-set xlabel 'Main workloads'
 set ylabel 'Weighted speedup' 
-set yrange [0:2]
+set yrange [0:2.1]
 #set xtics 0,10
 set xtics nomirror
 set xtic rotate by -45
 $xtics
+$label_cmd
 #set ytics 0,20
 set ytics nomirror
 set style data histograms

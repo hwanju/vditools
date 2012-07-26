@@ -16,6 +16,7 @@ prolog_workload=${WORKLOAD}_prolog
 
 mkdir -p $latency_dir
 mkdir -p $out_dir
+rm -f /tmp/query
 
 WAIT_BOOT_SIGNAL
 
@@ -37,7 +38,7 @@ while [ 1 ]
 do
 	spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2>> $latency_dir/WORKLOAD_NAME.latency >> $out_dir/WORKLOAD_NAME.out
 	let i=i+1
-        sleep 2
+        sleep $(( $THINK_TIME_MS / 1000 ))
 	# query to host whether the minimum number of iterations are ended
 	SEND_QUERY_SIGNAL
 

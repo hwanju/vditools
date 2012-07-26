@@ -10,7 +10,7 @@ $dir =~ s/\/$//g;
 if ($conv eq "-c") {
 	@debug_files = `ls $dir/*.debug`;
 	foreach $fn (@debug_files) {
-		print "convert $fn to lhp file\n";
+		print "convert $fn";
 		system("./get_lockholder.plx futex $fn");
 	}
 }

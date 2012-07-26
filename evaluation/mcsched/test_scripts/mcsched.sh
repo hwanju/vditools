@@ -60,10 +60,10 @@ for workload in $workload_list; do
 		if [ -e $workload_path ]; then
 			./test_scripts/wipe.sh
 
-			if [ $(echo $mode | grep 'fairbal') ]; then
+			if [ "$params" != "" ]; then
 				./test_scripts/init_mcsched.sh 1 $params
-			elif [ $(echo $mode | grep 'singlepin') ]; then
-				./test_scripts/init_mcsched.sh 1 $params
+			elif [ $(echo $mode | grep 'fairbal') ]; then
+				./test_scripts/init_mcsched.sh 1
 			else
 				./test_scripts/init_mcsched.sh 0
 			fi
@@ -74,6 +74,8 @@ for workload in $workload_list; do
 				ln -sf config/config_1ubuntu1104+7ubuntu1104up-mcsched$cfg_postfix.py config.py
 			elif [ $mixed == "2" ]; then
 				ln -sf config/config_2ubuntu1104+6ubuntu1104up-mcsched$cfg_postfix.py config.py
+			elif [ $up == "1" ]; then
+				ln -sf config/config_8ubuntu1104up-mcsched$cfg_postfix.py config.py
 			elif [ $(cat $workload_path | grep 'windows/interactive') ]; then
 				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched$cfg_postfix.py config.py
 			else

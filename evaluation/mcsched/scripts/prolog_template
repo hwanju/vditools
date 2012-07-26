@@ -17,6 +17,9 @@ echo 2 > /sys/kernel/mm/ksm/run
 
 i=0
 j=0
+if [ "$PRIVATE_ARG2" == "force_ipisched" ]; then
+	IPISCHED=7
+fi
 for gname in ${GROUP_NAME[@]}
 do
 	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
@@ -24,6 +27,7 @@ do
 	/bin/echo $IPISCHED > ${GROUP_PATH[i]}/cpu.ipisched
 	/bin/echo $VM_SHARES > ${GROUP_PATH[i]}/cpu.shares
 
+	# apply the following config from the next guest
 	if [ "$PRIVATE_ARG2" == "solo_ipisched" ]; then
 		IPISCHED=0
 	elif [ "$PRIVATE_ARG2" == "solo_reschedco" ]; then
@@ -66,8 +70,8 @@ if [ -e "$debug_module" ]; then
 	#if [ $(basename $debug_module | grep 'lhp') ]; then
 	echo 1 > /sys/module/kvm/parameters/trace_lock_holder
 
-	echo $pid > /sys/module/kvm/parameters/trace_lock_holder_tgid
 	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
+	echo $pid > /sys/module/kvm/parameters/trace_lock_holder_tgid
 	#fi
 	staprun $debug_module > /tmp/kvm.debug &
 fi

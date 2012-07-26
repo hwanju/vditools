@@ -112,10 +112,10 @@ $max_slowdown = 4 if $max_slowdown > 4;
 open OFD, ">$plot_name.plt";
 print OFD "
 set terminal postscript eps enhanced monochrome
-set terminal post 'Times-Roman' 23
+set terminal post 'Times-Roman' 22
 set output '$plot_name.eps'
-set size 3,1
-set key reverse right box Left horizontal width -1
+set size 2.4,1
+set key reverse right box Left outside horizontal width -1
 set ylabel 'Slowdown (relative to solorun)' 
 set xrange [-1:38]
 set yrange [0:$max_slowdown]
@@ -126,6 +126,10 @@ set xtics nomirror
 set xtic rotate by -45
 #set ytics 0,20
 set ytics nomirror
+set label \"A workload mix\" at -0.95, 2.2
+#set style arrow 1 head nofilled ls 1 
+set arrow from 0.5, 2 to 0, 1.7
+set arrow from 0.5, 2 to 1, 1.7
 set style data histograms
 set style histogram 
 #set style histogram cluster gap 1
