@@ -1,0 +1,20 @@
+#!/usr/bin/stap -v
+probe kernel.function("futex_requeue") {
+	printf("-FR %s-%d-%d-%d %s\n", execname(), pid(), tid(), cpu(), $$parms)
+}
+probe kernel.function("futex_requeue").return {
+	printf("-FREND %s-%d-%d-%d\n", execname(), pid(), tid(), cpu())
+}
+probe kernel.function("wake_futex") {
+	printf("\tWF %s-%d-%d-%d %s-%d-%d\n", execname(), pid(), tid(), cpu(), kernel_string($q->task->comm), $q->task->tgid, $q->task->pid)
+}
+probe kernel.function("requeue_futex") {
+	printf("\tRF %s-%d-%d-%d %s-%d-%d\n", execname(), pid(), tid(), cpu(), kernel_string($q->task->comm), $q->task->tgid, $q->task->pid)
+}
+probe kernel.function("futex_wait") {
+	printf("  *FW %s-%d-%d-%d %s\n", execname(), pid(), tid(), cpu(), $$parms)
+}
+probe __scheduler.ctxswitch.tp {
+	printf("# CTX %d %s-%d-%d-%x -> %s-%d-%d-%x\n",
+		cpu(), prev_task_name, prev_pid, prev_tid, prevtsk_state, next_task_name, next_pid, next_tid, nexttsk_state)
+}

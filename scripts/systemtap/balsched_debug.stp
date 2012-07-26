@@ -1,0 +1,33 @@
+#!/usr/bin/stap -v
+
+//probe kernel.trace("kvm_vcpu_switch") {
+//        printf( "%s %d %d %d %d %d\n", $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $state, $flags);
+//}
+//probe __scheduler.ctxswitch.tp {
+//        if ($next->se->is_vcpu)
+//                printf("SC %d-%d cpu=%d\n", next_pid, next_tid, cpu())
+//}
+//probe kernel.trace("balsched_cpu_load") {
+//        printf("LD cpu=%d w=%d el=%d tot=%d l=%d avgl=%d\n", $cpu, $weight, $expected_load, $cur_total_weight, $cpu_load, $weight_per_cpu)
+//}
+//probe kernel.trace("balsched_cpu_stat") {
+//        printf("\tCHK %d-%d cpu=%d wl=%d imb=%d nv=%d ic=%d %s\n", 
+//              $p->tgid, $p->pid, $cpu, $weighted_cpuload, $load_imbalance, $nr_running_vcpus, $interactive_count,
+//              !$nr_running_vcpus && !$load_imbalance && !$interactive_count ? "+" : "-")
+//}
+//probe kernel.trace("balsched_cpu_stat") {
+//        printf("\tCHK %d-%d cpu=%d wl=%d imb=%d nv=%d %s\n", 
+//              $p->tgid, $p->pid, $cpu, $weighted_cpuload, $load_imbalance, $nr_running_vcpus,
+//              !$nr_running_vcpus && !$load_imbalance ? "+" : "-")
+//}
+probe kernel.trace("balsched_affinity") {
+        printf("\t\tAF %d-%d %x\n", $p->tgid, $p->pid, $affinity_bit)
+}
+//probe kernel.trace("balsched_update_affinity") {
+//        printf("UA %d-%d nv=%d bit=%02lx\n", $p->tgid, $p->pid, $nr_running_vcpus, $cpu_allowed_mask)
+//}
+//probe kernel.function("try_to_balance_affine") {
+//        if ($p->se->is_vcpu) {
+//                printf("%s is_vcpu=%d balsched=%d\n", probefunc(), $p->se->is_vcpu, $p->se->cfs_rq->tg->balsched)
+//        }
+//}

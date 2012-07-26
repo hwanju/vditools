@@ -1,0 +1,52 @@
+#!/usr/bin/stap -v
+
+global time_quantum
+global start_time
+global ipi
+global resched_ipi_interxmit_time
+global resched_ipi_xmit_time
+
+probe __scheduler.ctxswitch.tp {
+	if ($prev->se->is_vcpu && [prev_tid] in start_time) {
+		time_quantum[prev_pid] <<< (gettimeofday_us() - start_time[prev_tid])
+	}
+	if ($next->se->is_vcpu) {
+		start_time[next_tid] = gettimeofday_us()
+		resched_ipi_xmit_time[next_tid] = 0
+	}
+}
+
+probe kernel.trace("kvm_apic_ipi") {
+        vec = $icr_low & 0xFF
+	ipi[pid(), vec] <<< 1
+	if (vec == 0xfd) {	// resched ipi
+		tid = tid()
+		now = gettimeofday_us()
+		if ([tid] in resched_ipi_xmit_time && resched_ipi_xmit_time[tid]) {
+			resched_ipi_interxmit_time[pid()] <<< (now - resched_ipi_xmit_time[tid])
+		}
+		resched_ipi_xmit_time[tid] = now
+	}
+}
+
+probe end {
+	printf ("# time quantum stat\n");
+	foreach ([pid+] in time_quantum) {
+		printf ("pid=%d\n", pid)
+		print( @hist_log(time_quantum[pid]) )
+        	printf( "count=%d, avg=%d, min=%d, max=%d\n", 
+        	        @count(time_quantum[pid]), @avg(time_quantum[pid]), @min(time_quantum[pid]), @max(time_quantum[pid]) )
+	}
+	printf ("# resched_ipi interxmit time stat\n");
+	foreach ([pid+] in resched_ipi_interxmit_time) {
+		printf ("pid=%d\n", pid)
+		print( @hist_log(resched_ipi_interxmit_time[pid]) )
+        	printf( "count=%d, avg=%d, min=%d, max=%d\n", 
+        	        @count(resched_ipi_interxmit_time[pid]), @avg(resched_ipi_interxmit_time[pid]), 
+			@min(resched_ipi_interxmit_time[pid]), @max(resched_ipi_interxmit_time[pid]) )
+	}
+	printf ("# ipi stat\n");
+	foreach ([pid+, vec] in ipi) {
+		printf ("pid=%d\tvec=%x\t%d\n", pid, vec, @count(ipi[pid, vec]))
+	}
+}

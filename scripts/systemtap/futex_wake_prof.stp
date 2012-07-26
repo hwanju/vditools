@@ -1,0 +1,62 @@
+#!/usr/bin/stap -v
+
+global interxmit_wake
+global prev_wake
+
+global interxmit_barrier_wake
+global prev_barrier_wake
+
+global interxmit_cond_broadcast
+global prev_cond_broadcast
+
+probe kernel.function("futex_wake") {
+	execname = execname()
+	if($nr_wake == 0x7fffffff) {
+		now = gettimeofday_us()
+		if (execname in prev_barrier_wake && prev_barrier_wake[execname])
+			interxmit_barrier_wake[execname] <<< (now - prev_barrier_wake[execname])
+		prev_barrier_wake[execname] = now
+	}
+	else {
+		now = gettimeofday_us()
+		if (execname in prev_wake && prev_wake[execname]) {
+			for (i = 0; i < $nr_wake ; i++)
+				interxmit_wake[execname] <<< (now - prev_wake[execname])
+		}
+		prev_wake[execname] = now
+	}
+
+}
+probe kernel.function("futex_requeue") {
+	execname = execname()
+	if($nr_requeue == 0x7fffffff) {
+		now = gettimeofday_us()
+		if (execname in prev_cond_broadcast && prev_cond_broadcast[execname])
+			interxmit_cond_broadcast[execname] <<< (now - prev_cond_broadcast[execname])
+		prev_cond_broadcast[execname] = now
+	}
+}
+
+probe end {
+	printf ("# interxmit wake\n");
+	foreach ([execname] in interxmit_wake-) {
+		printf ("execname=%s\n", execname)
+		print( @hist_log(interxmit_wake[execname]) )
+        	printf( "count=%d, avg=%d, min=%d, max=%d\n", 
+        	        @count(interxmit_wake[execname]), @avg(interxmit_wake[execname]), @min(interxmit_wake[execname]), @max(interxmit_wake[execname]) )
+	}
+	printf ("# interxmit barrier wake\n");
+	foreach ([execname] in interxmit_barrier_wake-) {
+		printf ("execname=%s\n", execname)
+		print( @hist_log(interxmit_barrier_wake[execname]) )
+        	printf( "count=%d, avg=%d, min=%d, max=%d\n", 
+        	        @count(interxmit_barrier_wake[execname]), @avg(interxmit_barrier_wake[execname]), @min(interxmit_barrier_wake[execname]), @max(interxmit_barrier_wake[execname]) )
+	}
+	printf ("# interxmit cond broadcast\n");
+	foreach ([execname] in interxmit_cond_broadcast-) {
+		printf ("execname=%s\n", execname)
+		print( @hist_log(interxmit_cond_broadcast[execname]) )
+        	printf( "count=%d, avg=%d, min=%d, max=%d\n", 
+        	        @count(interxmit_cond_broadcast[execname]), @avg(interxmit_cond_broadcast[execname]), @min(interxmit_cond_broadcast[execname]), @max(interxmit_cond_broadcast[execname]) )
+	}
+}

@@ -1,0 +1,18 @@
+#!/usr/bin/stap -v
+
+global start_time_us
+
+probe begin {
+	start_time_us = gettimeofday_us()
+}
+
+probe kernel.function("futex_wake") {
+	if ($nr_wake == 1)
+		printf ("%d\t%s\t%d\t1\n", gettimeofday_us() - start_time_us, execname(), tid())
+	else if($nr_wake == 0x7fffffff)
+		printf ("%d\t%s\t%d\t1.2\n", gettimeofday_us() - start_time_us, execname(), tid())
+}
+probe kernel.function("futex_requeue") {
+	if ($nr_requeue == 0x7fffffff)
+		printf ("%d\t%s\t%d\t0.8\n", gettimeofday_us() - start_time_us, execname(), tid())
+}

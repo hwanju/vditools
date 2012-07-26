@@ -1,0 +1,22 @@
+#!/usr/bin/stap -v
+
+global start_time_us
+
+probe begin {
+	start_time_us = gettimeofday_us()
+}
+
+//global FUTEX_CMD_MASK = 3711    # ~(128 | 256)
+//probe syscall.futex {  
+//	cmd = op & FUTEX_CMD_MASK    
+//	printf ("%d\t%s\tcmd=%d\n", gettimeofday_us(), execname(), cmd)
+//}
+probe kernel.function("futex_wake") {
+	printf ("%d\t%s\t%d\twake\tnr_wake=%d\n", gettimeofday_us() - start_time_us, execname(), tid(), $nr_wake)
+}
+probe kernel.function("futex_requeue") {
+	printf ("%d\t%s\t%d\trequeue\tnr_requeue=%d\n", gettimeofday_us() - start_time_us, execname(), tid(), $nr_requeue)
+}
+//probe kernel.function("native_smp_send_reschedule") {
+//	printf ("%d\t%s\t%d\tI\n", gettimeofday_us() - start_time_us, execname(), tid())
+//}

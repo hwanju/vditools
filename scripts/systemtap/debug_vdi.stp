@@ -1,0 +1,84 @@
+#!/usr/bin/stap -v
+
+global log_enabled
+global tid_to_vcpu_id
+
+probe kernel.trace("kvm_load_info") {
+        printf("%d %s %d %d %d %d %d %d %d\n", gettimeofday_us(),
+                "LI", $kvm->vm_id, $kvm->monitor_seqnum, $kvm->last_interactive_seqnum, $kvm->interactive_phase, $kvm->pre_monitor_load, $cur_vm_load, $reactive_gtask_load )
+}
+probe kernel.trace("kvm_load_check") {
+        printf("%d %s %d %d\n", gettimeofday_us(), "LC", $op, $vm_id)
+        log_enabled[$vm_id] = $op;
+}
+
+probe __scheduler.ctxswitch.tp {
+        curr_time = gettimeofday_us()
+        curr_cpu = cpu()
+        if (log_enabled[prev_pid] || log_enabled[next_pid] ) {
+                printf( "%d DP \"%s\" d%d-v%dp%d pri%d i%d s%d -> \"%s\" d%d-v%dp%d i%d p%d s%d\n", 
+                                curr_time, 
+
+                                prev_task_name, prev_pid, prev_tid in tid_to_vcpu_id ? tid_to_vcpu_id[prev_tid] : prev_tid, curr_cpu, 
+                                prev_priority, log_enabled[prev_pid], prevtsk_state,
+
+                                next_task_name, next_pid, next_tid in tid_to_vcpu_id ? tid_to_vcpu_id[next_tid] : next_tid, curr_cpu, 
+                                next_priority, log_enabled[next_pid], nexttsk_state
+                )
+        }
+}
+
+probe kernel.trace("kvm_vcpu_switch") {
+        if (log_enabled[pid()]) {
+                printf( "%d %s d%d-v%dp%d f%d s%d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $flags, $state);
+        }
+        tid_to_vcpu_id[tid()] = $vcpu_id
+}
+probe kernel.trace("kvm_gthread_switch") {
+        if (log_enabled[pid()]) {
+                printf( "%d %s d%d-v%dp%d %05x f%d\n", gettimeofday_us(), $op ? "  GA" : "  GD", pid(), $vcpu_id, cpu(), $guest_task_id, $flags);
+        }
+}
+
+probe kernel.function("put_prev_task") {
+        if (log_enabled[pid()]) {
+                if ($prev->pid in tid_to_vcpu_id) {
+                        printf( "%d %s d%d-v%dp%d rq=%d int=%d\n", 
+                                gettimeofday_us(), "PP", $prev->tgid, tid_to_vcpu_id[$prev->pid], cpu(), $prev->se->on_rq,
+                                $prev->se->interactive_node->next != &$prev->se->interactive_node);
+                }
+        }
+}
+#probe kernel.function("pick_next_task") {
+#        if (log_enabled[pid()]) {
+#                printf( "%d %s p%d\n", gettimeofday_us(), "PN", cpu());
+#        }
+#}
+probe kernel.function("resched_task") {
+        if (log_enabled[pid()]) {
+                if ($p->pid in tid_to_vcpu_id) {
+                        printf( "%d %s d%d-v%dp%d\n", gettimeofday_us(), "RT", $p->tgid, tid_to_vcpu_id[$p->pid], cpu());
+                }
+        }
+}
+probe kernel.function("__list_add_interactive") {
+        if (log_enabled[pid()]) {
+                //if ($p->pid in tid_to_vcpu_id) {
+                //        printf( "%d %s d%d-v%dp%d em=%d re=%d\n", gettimeofday_us(), "QI", pid(), tid_to_vcpu_id[$p->pid], cpu(), 
+                //        $p->se->interactive_node->next == &$p->se->interactive_node, $p->se->cfs_rq->curr == &$p->se );
+                //}
+                printf( "%d %s d%d-v%sp%d\n", gettimeofday_us(), "QI", pid(), "?", cpu()) 
+        }
+}
+probe kernel.function("check_preempt_wakeup") {
+        if (log_enabled[pid()]) {
+                if ($p->pid in tid_to_vcpu_id) {
+                        printf( "%d %s d%d-v%dp%d\n", gettimeofday_us(), "CPW", pid(), tid_to_vcpu_id[$p->pid], cpu())
+                }
+        }
+}
+probe kernel.function("wakeup_preempt_entity").return {
+        if (log_enabled[pid()]) {
+                printf( "%d %s r=%d\n", gettimeofday_us(), "  WPE", $return )
+        }
+}
