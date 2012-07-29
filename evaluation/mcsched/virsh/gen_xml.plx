@@ -45,6 +45,7 @@ $up = defined($ENV{VCPU}) && $ENV{VCPU} eq '1' ? "up" : "";
 if ($vm_format =~ /^(\d+)([\w\.]+)/) {
 	$nr_vm = $1;
 	$name = $2;
+	$base_img_name = "${name}-apps${postfix}";
 	for $i (1 .. $nr_vm) {
 		$guest_name[$i-1] = "${name}-$i";
 		$guest_img_name[$i-1] = "${name}${postfix}-$i";
@@ -96,4 +97,12 @@ for $i (0 .. ($nr_guest - 1)) {
 		}
 	}
 	close OFD;
+	# make base xml
+	if ($i == 0) {
+		$base_xml_fn = $xml_fn[$i];
+		$guest_id = $i + 1;
+		$base_xml_fn =~ s/-$guest_id\.xml/\.xml/g;
+		system("cp $xml_fn[$i] $base_xml_fn");
+		system("sed -i 's/$guest_img_name[$i]/$base_img_name/g' $base_xml_fn");
+	}
 }
