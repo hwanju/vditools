@@ -13,6 +13,7 @@ while(<FD>) {
 	$list =~ s/"//g;
 	@workload_list = split(/\s+/, $list);
 	@parsec_workloads  = @workload_list if ($workload_name eq "parsec_workloads");
+	@npb_workloads     = @workload_list if ($workload_name eq "npb_workloads");
 	@ubuntu_workloads  = @workload_list if ($workload_name eq "ubuntu_workloads");
 	@windows_workloads = @workload_list if ($workload_name eq "windows_workloads");
 }
@@ -25,6 +26,7 @@ my %parsec;
 my %ubuntu;
 my %windows;
 @parsec{@parsec_workloads} = ();
+@npb{@npb_workloads} = ();
 @ubuntu{@ubuntu_workloads} = ();
 @windows{@windows_workloads} = ();
 
@@ -50,6 +52,7 @@ foreach $w (@workload_list) {
                 $name = $2;
 		$subdir = "";
 		if (exists $parsec{$name})		{ $subdir = "ubuntu/parsec" }
+		elsif (exists $npb{$name})		{ $subdir = "ubuntu/npb" }
 		elsif (exists $ubuntu{$name})		{ $subdir = "ubuntu/interactive" }
 		elsif (exists $windows{$name})		{ $subdir = "windows/interactive" }
 		elsif ($name =~ /Pi/)			{ $subdir = "ubuntu/Pi" }
