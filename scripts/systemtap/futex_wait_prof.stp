@@ -1,0 +1,24 @@
+#!/usr/bin/stap -v
+
+global block_time
+global wait_time_stat
+
+probe kernel.function("futex_wait") {
+	block_time[tid()] = gettimeofday_us()
+}
+probe kernel.function("futex_wait").return {
+	tid = tid()
+	if (tid in block_time && block_time[tid]) {
+		wait_time = gettimeofday_us() - block_time[tid]
+		wait_time_stat[execname(), $uaddr] <<< wait_time
+		block_time[tid] = 0
+	}
+}
+
+probe end {
+        printf( "\n" )
+        foreach ([procname, uaddr] in wait_time_stat-) {
+                printf ("procname=%s\tuaddr=0x%x\tcount=%d\tavg=%d\n", 
+			procname, uaddr, @count(wait_time_stat[procname, uaddr]), @avg(wait_time_stat[procname, uaddr]))
+        }
+}

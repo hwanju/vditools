@@ -1,0 +1,32 @@
+#!/usr/bin/stap -v
+
+global allow_this_cpu
+global allow_prev_cpu
+global diff_this_prev
+global avail_cpus
+
+probe kernel.trace("balsched_affinity") {
+	nr_cpus = 8
+	nr_avail_cpus = 0
+	this_cpu = cpu()
+	prev_cpu = @cast($p->se->cfs_rq, "cfs_rq")->rq->cpu
+	if (this_cpu != prev_cpu)
+		diff_this_prev <<< 1
+	for (i=0; i < nr_cpus; i++) {
+		if ($affinity_bit & (1<<i)) {
+			nr_avail_cpus++
+			if (i == this_cpu)
+				allow_this_cpu <<< 1
+			else if (this_cpu != prev_cpu && i == prev_cpu)
+				allow_prev_cpu <<< 1
+		}
+	}
+	avail_cpus <<< nr_avail_cpus
+}
+probe end {
+	printf("allow_this_cpu=%d\n", @count(allow_this_cpu))
+	printf("allow_prev_cpu=%d\n", @count(allow_prev_cpu))
+	printf("diff_this_prev=%d\n", @count(diff_this_prev))
+	printf("avail_cpus: count=%d avg=%d min=%d max=%d\n", @count(avail_cpus), @avg(avail_cpus), @min(avail_cpus), @max(avail_cpus))
+	print(@hist_linear(avail_cpus,0,8,1))
+}

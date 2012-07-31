@@ -4,7 +4,7 @@
 echo 0 > /sys/kernel/mm/ksm/run
 echo 2 > /sys/kernel/mm/ksm/run
 
-if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" ]; then
+if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" -a "$npb_workloads" == "" ]; then
 	source workloads/mcsched/workloads.inc
 fi
 if [ "$nr_iter" == "" ]; then
@@ -28,6 +28,9 @@ workload_format=$1
 if [ $(echo $workload_format | grep parsec) ]; then
 	workload_list=$parsec_workloads
 	resdir=results/mcsched/_$workload_format
+elif [ $(echo $workload_format | grep npb) ]; then
+	workload_list=$npb_workloads
+	resdir=results/mcsched/_$workload_format
 elif [ $(echo $workload_format | grep interactive) ]; then
 	workload_list=$interactive_workloads
 	resdir=results/mcsched/_$workload_format
@@ -48,6 +51,7 @@ mkdir -p $resdir
 for workload in $workload_list; do 
 	for mode in $mode_list; do 
 		workload_name=$(echo $workload_format | sed "s/parsec/$workload/g")
+		workload_name=$(echo $workload_name | sed "s/npb/$workload/g")
 		workload_name=$(echo $workload_name | sed "s/interactive/$workload/g")
 		workload_name=$workload_name@$mode
 		workload_path=workloads/mcsched/$workload_name
@@ -70,11 +74,11 @@ for workload in $workload_list; do
 
 			# change config.py
 			rm -f config.pyc
-			if [ $mixed == "1" ]; then
+			if [ "$mixed" == "1" ]; then
 				ln -sf config/config_1ubuntu1104+7ubuntu1104up-mcsched$cfg_postfix.py config.py
-			elif [ $mixed == "2" ]; then
+			elif [ "$mixed" == "2" ]; then
 				ln -sf config/config_2ubuntu1104+6ubuntu1104up-mcsched$cfg_postfix.py config.py
-			elif [ $up == "1" ]; then
+			elif [ "$up" == "1" ]; then
 				ln -sf config/config_8ubuntu1104up-mcsched$cfg_postfix.py config.py
 			elif [ $(cat $workload_path | grep 'windows/interactive') ]; then
 				ln -sf config/config_1win7_64bit+7ubuntu1104-mcsched$cfg_postfix.py config.py

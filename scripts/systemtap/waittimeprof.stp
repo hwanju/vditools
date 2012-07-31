@@ -1,0 +1,15 @@
+#!/usr/bin/stap -v
+
+global id
+
+probe kernel.trace("kvm_ui") {
+        if ($event_type == 3 || ($event_type == 0 && $event_info == 28))
+                id++
+        printf("%d %s %d %d %d id=%d\n", gettimeofday_us(), "UI", $kvm->vm_id, $event_type, $event_info, id)
+}
+probe kernel.trace("kvm_load_check") {
+        printf("%d %s %d %d\n", gettimeofday_us(), "LC", $op, $vm_id)
+}
+probe kernel.trace("kvm_vcpu_switch") {
+        printf( "%d %s %d %d %d %d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu_id, cpu(), $schedstat);
+}
