@@ -56,7 +56,9 @@ foreach $line (@tlbipi_cycles) {
 }
 
 foreach $workload (keys %tlb) {
-	$plot_name = "$dir-$workload-ple";
+	$label = $dir;
+	$label =~ s/-ple//g;
+	$plot_name = "$label-$workload-ple";
 	open OFD, ">$plot_name.dat";
 	print OFD "#Mode\tTLB cycles\tSpinlock cycles\tAvg Time\tSd Time\n";
 	$i = 0;
