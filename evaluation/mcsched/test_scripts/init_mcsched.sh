@@ -13,7 +13,7 @@ if [ $on -eq 0 ]; then
 elif [ $# -ge 2 ]; then
 	params=$2
 else
-	params="1:500000:18000000:1:500000:500000"	# default
+	params="1:500000:18000000:1:500000:0"	# default
 fi
 
 # init cgroup

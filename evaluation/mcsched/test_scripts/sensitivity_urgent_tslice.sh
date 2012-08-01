@@ -8,7 +8,7 @@
 workloads="vips"
 nr_vms="3"
 allowance="18000000"
-tslice="100000 500000 1000000 3000000"
+tslice="100000 500000 1000000 3000000 5000000"
 
 for w in $workloads; do
 	for n in $nr_vms; do

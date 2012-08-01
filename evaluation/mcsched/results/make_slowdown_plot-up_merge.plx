@@ -29,7 +29,7 @@ foreach $res_file (@res_files) {
 				$workload_name[$id++] = $2;
 			}
 			for (1 .. $3) {
-				$name = "$2+$4";
+				$name = $4;
 				$name .= "(UP)" if $4 eq "x264";		# NOTE: x264 corunner is only used as UP VM
 				$workload_name[$id++] = $name;
 			}
@@ -73,69 +73,64 @@ foreach $res_file (@res_files) {
 $plot_name = "$dir-slowdown";
 open OFD, ">$plot_name.dat";
 $slowdown_idx = 2;
-$slowdown_step = 4;
+$slowdown_step = 5;
 $plot = "'$plot_name.dat'";
 $plot_first = 1;
-@fill_map = ("fs solid 0.05", "fs pattern 2", "fs solid 0.45", "fs pattern 4", "fs solid 0.85", "fs pattern 6");
+@fill_map = ("fs solid 0.05", "fs pattern 2", "fs solid 0.45", "fs pattern 4", "fs pattern 6", "fs solid 0.85");
 @title_map = ("Baseline", "Balance", "LC Balance", "LC Balance+Resched-DP", "LC Balance+Resched-DP+TLB-Co", "LC Balance+Resched-DP+TLB-Co+Resched-Co");
 $idx = 0;
 $max_slowdown = 0;
 foreach $workload (sort keys %sum) {
-	$workload_name = $workload;
-	$workload_name =~ s/^\w+\+//g unless (defined($solorun_time{$workload_name}));
-	printf OFD "%-15s", $workload_name;
+	printf OFD "%-15s", $workload;
 	foreach $mode (sort keys %{$sum{$workload}}) {
 		$nr_samples = $n{$workload}{$mode};
 		$avg = $sum{$workload}{$mode} / $nr_samples;
 		$sd = sqrt(($sqsum{$workload}{$mode} / $nr_samples) - ($avg * $avg));
-		$slowdown = $avg / $solorun_time{$workload_name};
-		printf OFD "%-8.2lf%-8.2lf%-6.2lf%-3d\t", $slowdown, $avg, $sd, $nr_samples;
+		$slowdown = $avg / $solorun_time{$workload};
+		$sd_slowdown = $sd / $solorun_time{$workload};
+		printf OFD "%-8.2lf%-8.2lf%-8.2lf%-6.2lf%-3d\t", $slowdown, $sd_slowdown, $avg, $sd, $nr_samples;
 		$max_slowdown = $slowdown if $slowdown > $max_slowdown;
+		$sd_slowdown_idx = $slowdown_idx + 1;
 
 		if ($plot_first) {
 			$plot .= ", ''" unless $mode eq "baseline";
-			$plot .= " u $slowdown_idx:xtic(1) t \"$title_map[$idx]\" $fill_map[$idx] lt 1";
+			$plot .= " u $slowdown_idx:$sd_slowdown_idx:xtic(1) t \"$title_map[$idx]\" $fill_map[$idx] lt 1";
 			$slowdown_idx += $slowdown_step;
 			$idx++;
 		}
 	}
 	$plot_first = 0;
 	print OFD "\n";
-	if ($workload_name =~ /UP/) {
-		printf OFD "\"\" 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n";
-	}
 }
 close OFD;
 #print "$plot\n";
-$max_slowdown += 0.5;
-$max_slowdown = 4 if $max_slowdown > 4;
+$vert_line = $max_slowdown;
+$vert_line = 5 if $vert_line > 5;
+$max_slowdown += 1.5;
+$max_slowdown = 7 if $max_slowdown > 7;
 open OFD, ">$plot_name.plt";
 print OFD "
 set terminal postscript eps enhanced monochrome
-set terminal post 'Times-Roman' 22
+set terminal post 'Times-Roman' 20
 set output '$plot_name.eps'
-set size 2.4,1
-set key reverse right box Left outside horizontal width -1
+set size 1.3,1
+set key reverse right box Left width -1
 set ylabel 'Slowdown (relative to solorun)' 
-set xrange [-1:38]
 set yrange [0:$max_slowdown]
-#set parametric
+set parametric
 const=12.6
 #set xtics 0,10
 set xtics nomirror
 set xtic rotate by -45
 #set ytics 0,20
 set ytics nomirror
-set label \"A workload mix\" at -0.95, 2.2
-#set style arrow 1 head nofilled ls 1 
-set arrow from 0.5, 2 to 0, 1.7
-set arrow from 0.5, 2 to 1, 1.7
 set style data histograms
 set style histogram 
-#set style histogram cluster gap 1
+set style histogram errorbars lw 2
 set grid y
-set boxwidth 1
-plot $plot #, const,t t '' lt 2 lw 4
+set boxwidth 0.75
+set trange [0:$vert_line]
+plot $plot, const,t t '' lt 2 lw 4
 ";
 close OFD;
 

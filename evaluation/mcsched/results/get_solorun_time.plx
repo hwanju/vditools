@@ -4,8 +4,9 @@ $filter = @ARGV ? shift(@ARGV) : "";
 
 @res_files = `ls *$filter*.result`;
 foreach $res_file (@res_files) {
-        if ( $res_file =~ /^1(\w+)/ ) {
+        if ( $res_file =~ /^1(\w+)\@(.+)\./ ) {
                 $workload = $1;
+		$mode = $2;
 
                 chomp($res_file);
                 $total = $sqtotal = $n = 0;
@@ -31,6 +32,7 @@ foreach $res_file (@res_files) {
 			$sd = sqrt(($sqtotal / $n) - ($avg*$avg));
 		}
 		else { $avg = $sd = 0 }
-		printf ("$workload\t%d\t%.2lf\n", $avg, $sd);
+		$up = $mode =~ /-up/ ? "(UP)" : "";
+		printf ("$workload$up\t%d\t%.2lf\n", $avg, $sd);
         }
 }
