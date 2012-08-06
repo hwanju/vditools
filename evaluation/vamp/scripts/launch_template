@@ -1,0 +1,67 @@
+CLIENT_HOME=
+CLIENT_TRACE_DIR=
+WORKLOAD=
+THINK_TIME_MS=
+NR_ITER=
+SPICE_PORT=
+
+export DISPLAY=:0
+export XAUTHORITY=$CLIENT_HOME/.Xauthority
+
+host_addr=$IP_HOST	# from skbench.py
+trace_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/traces
+latency_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/latency
+out_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/out
+prolog_workload=${WORKLOAD}_prolog
+
+mkdir -p $latency_dir
+mkdir -p $out_dir
+if [ "$MIXED_TRACE" != "1" ]; then
+        rm -f /tmp/query
+else
+        echo repeat > /tmp/query
+fi
+
+WAIT_BOOT_SIGNAL
+
+sleep 20	# wait for householding after boot
+
+### WORKLOAD_NAME is replaced by skbench ###
+if [ "$prolog_workload" != "" ]; then
+        spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS --hide > $out_dir/WORKLOAD_NAME.prolog.out
+fi
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+i=1
+echo -n > $latency_dir/WORKLOAD_NAME.latency
+echo -n > $out_dir/WORKLOAD_NAME.out
+#while [ $i -le $NR_ITER ]
+while [ 1 ]
+do
+        sleep $(( $THINK_TIME_MS / 1000 ))
+	spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2>> $latency_dir/WORKLOAD_NAME.latency >> $out_dir/WORKLOAD_NAME.out
+	# query to host whether the minimum number of iterations are ended
+	SEND_QUERY_SIGNAL
+
+	# get a message from host
+	while [ 1 ]
+	do
+		if [ -e /tmp/query ]
+		then
+			break
+		fi
+		sleep 0.01
+	done
+
+	# (stop or repeat)
+	reply=$(cat /tmp/query)
+	if [ "$reply" = "stop" ]
+	then
+		break
+	fi
+        if [ "$MIXED_TRACE" != 1 ]; then
+	        rm /tmp/query
+        fi
+done

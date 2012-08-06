@@ -1,0 +1,23 @@
+NUM_THREADS=8
+
+cd ~/linux-3.1.6
+find ./ -type f -exec cat {} >/dev/null \;
+mount -t tmpfs -o size=2G tmpfs /mnt
+cp /root/defconfig_linux.3.1.6 /mnt/.config
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+
+# init lockstat
+if [ -e /proc/lock_stat ]; then
+        echo 0 > /proc/lock_stat
+fi
+
+/usr/bin/time -v make -j$NUM_THREADS O=/mnt  1> /dev/null 2> /tmp/result
+
+if [ -e /proc/lock_stat ]; then
+        cat /proc/lock_stat >> /tmp/result
+fi
+
+cat /tmp/result | TO_HOST

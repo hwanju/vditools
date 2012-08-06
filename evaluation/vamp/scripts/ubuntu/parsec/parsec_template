@@ -1,0 +1,76 @@
+PACKAGE=
+TYPE=
+NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
+
+mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
+cd ~/parsec-2.1
+mkdir -p pkgs/$TYPE/$PACKAGE/run/
+tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
+# check pvspinlock current status
+if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
+        echo "pvspinlock label" > /tmp/pvspinlock.log
+        find /sys/kernel/debug/kvm/spinlocks/ -type f -exec basename {} \; >> /tmp/pvspinlock.log
+        echo "pvspinlock start" >> /tmp/pvspinlock.log
+        find /sys/kernel/debug/kvm/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
+fi
+# init lockstat
+if [ -e /proc/lock_stat ]; then
+        echo 0 > /proc/lock_stat
+fi
+
+# check and run futex profiling
+#if [ -e /root/futex_prof.ko ]; then
+#	procname=$PACKAGE
+#	if [ "$PACKAGE" == "raytrace" ]; then
+#		procname=rtview
+#	fi
+#	echo "futex_wait_stat" > /tmp/futex_prof.log
+#	staprun /root/futex_prof.ko | grep $procname >> /tmp/futex_prof.log &
+#fi
+
+echo "start_stat" > /tmp/stat.log
+cat /proc/stat >> /tmp/stat.log
+echo start_time=`date '+%s'` > /tmp/schedstat.log
+cat /proc/schedstat >> /tmp/schedstat.log
+pidstat -u 10 > /tmp/pidstat.log &
+
+# WORKLOAD RUN
+#FUTEX_DEBUG=1 bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
+bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
+
+killall -9 pidstat
+echo "end_stat" >> /tmp/stat.log
+cat /proc/stat >> /tmp/stat.log
+echo end_time=`date '+%s'` >> /tmp/schedstat.log
+cat /proc/schedstat >> /tmp/schedstat.log
+
+# check pvspinlock finish status
+if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
+        echo "pvspinlock end" >> /tmp/pvspinlock.log
+        find /sys/kernel/debug/kvm/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
+fi
+
+# finish futex profiling if needed
+#killall -15 stapio
+#if [ -e /root/futex_prof.ko ]; then
+#	sleep 5		# wait for ending profiling
+#fi
+
+# merge result
+cat /tmp/result > /tmp/parsec.result
+if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
+        cat /tmp/pvspinlock.log >> /tmp/parsec.result
+fi
+if [ -e /proc/lock_stat ]; then
+        cat /proc/lock_stat >> /tmp/parsec.result
+fi
+cat /tmp/stat.log >> /tmp/parsec.result
+cat /tmp/schedstat.log >> /tmp/parsec.result
+cat /tmp/pidstat.log >> /tmp/parsec.result
+cat /tmp/futex_prof.log >> /tmp/parsec.result
+
+cat /tmp/parsec.result | TO_HOST

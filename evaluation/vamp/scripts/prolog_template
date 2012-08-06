@@ -1,0 +1,71 @@
+CPUCTL_ROOT="/cpuctl"
+GROUP_PATH=()
+GROUP_NAME=(g1 g2 g3 g4 g5 g6 g7 g8 g9 g10)
+VM_LIST=(ubuntu1104-1 ubuntu1104-2 ubuntu1104-3 ubuntu1104-4 ubuntu1104-5 ubuntu1104-6 ubuntu1104-7 ubuntu1104-8 win7_64bit-1 win7_64bit-2)
+VM_PID=()
+NR_CPUS=`cat /proc/cpuinfo | grep processor | wc -l`
+VM_SHARES=$(( $NR_CPUS * 1024 ))
+
+echo 0 > /sys/kernel/mm/ksm/run
+echo 2 > /sys/kernel/mm/ksm/run
+
+i=0
+j=0
+for gname in ${GROUP_NAME[@]}
+do
+	GROUP_PATH[i]=$CPUCTL_ROOT/$gname
+	/bin/echo $VM_SHARES > ${GROUP_PATH[i]}/cpu.shares
+
+	pid=($(ps aux | grep ${VM_LIST[i]} | grep -v grep | awk '{print $2}'))
+        if [ "$pid" != "" ]; then
+                /bin/echo $pid > ${GROUP_PATH[i]}/cgroup.procs
+                VM_PID[i]=$pid
+
+                # per-thread stat
+                rm -f /tmp/$gname.*
+                for tid in `ls /proc/$pid/task/`
+                do
+                        echo start_time=`date '+%s'` > /tmp/$gname.$tid
+                        cat /proc/$tid/stat >> /tmp/$gname.$tid
+                        cat /proc/$tid/sched >> /tmp/$gname.$tid
+                        VM_TID[j]=$gname.$tid
+                        let j=j+1
+                done
+        fi
+
+	let i=i+1
+done
+
+echo start_time=`date '+%s'` > /tmp/total.schedstat
+cat /proc/schedstat >> /tmp/total.schedstat
+pidstat -C kvm -u -I -r -d -w -h 5 > /tmp/pidstat.log &
+# kvm stat
+unset kvm_stat
+declare -A kvm_stat
+kvm_stat_list=`ls /sys/kernel/debug/kvm/* | sed 's/\/sys\/kernel\/debug\/kvm\///g'`
+for s in $kvm_stat_list; do
+	kvm_stat[$s]=`cat /sys/kernel/debug/kvm/$s`
+done
+
+debug_module="$PRIVATE_ARG1"
+if [ -e "$debug_module" ]; then
+	#if [ $(basename $debug_module | grep 'lhp') ]; then
+	echo 1 > /sys/module/kvm/parameters/trace_lock_holder
+
+	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
+	echo $pid > /sys/module/kvm/parameters/trace_lock_holder_tgid
+	#fi
+	staprun $debug_module > /tmp/kvm.debug &
+fi
+if [ "$PRIVATE_ARG2" == "perf" ]; then
+	# perf
+	ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
+	ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
+	perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -p $pid -o /tmp/kvm.perf.data &
+elif [ "$PRIVATE_ARG2" == "perfall" ]; then
+	# perfall
+	ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
+	ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+	perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -a -o /tmp/kvm.perf.data &
+fi

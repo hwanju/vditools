@@ -1,0 +1,7 @@
+QEMU		http://libvirt.org/schemas/domain/qemu/1.0
+MEM		2097152
+VCPU		8
+MC		N
+ARCH		x86_64
+GUEST_MAC	00:16:3e:ca:ca:16 00:16:3e:ca:ca:17 00:16:3e:ca:ca:18 00:16:3e:ca:ca:19 00:16:3e:ca:ca:20 00:16:3e:ca:ca:11  00:16:3e:ca:ca:12 00:16:3e:ca:ca:13 00:16:3e:ca:ca:14 00:16:3e:ca:ca:15 
+SPICE_PORT_BASE	6001

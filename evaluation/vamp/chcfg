@@ -1,0 +1,21 @@
+#!/bin/sh
+
+substr=
+if [ $# -eq 1 ]; then
+        substr=$1
+fi
+
+i=0
+for f in `ls config/*$substr*`; do
+        list[$i]=$f
+        echo "$i: $f"
+        i=$(( $i + 1 ))
+done
+echo -n "Select number: "
+read i
+f=${list[$i]}
+
+rm -f config.py config.pyc
+ln -s $f config.py
+
+ls -al config.py
