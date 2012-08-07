@@ -8,7 +8,7 @@ if [ "$MIXED_TRACE" == "1" ]; then
                 NR_THREADS=$val
         fi
 fi
-for i in $NR_THREADS; do 
+for i in `seq $NR_THREADS`; do 
         /root/cpulimit/cpubound &
 done
 
