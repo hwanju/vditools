@@ -69,7 +69,7 @@ for workload in $workload_list; do
                         info_opt=""
 			if [ "$params" != "" ]; then
 				./test_scripts/init_$project.sh 1 $params
-                                info_opt="-o -$params"
+                                info_opt="-o -$params$res_postfix"
 			elif [ $(echo $mode | grep 'fairbal') ]; then
 				./test_scripts/init_$project.sh 1
 			else

@@ -1,11 +1,16 @@
 PACKAGE=
 TYPE=
+
+prefix_cmd=
 NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 if [ "$MIXED_TRACE" == "1" ]; then
 	val=`echo $OPTIONAL_INFO | cut -d: -f2`
         if [ "$val" != "" ]; then
                 NR_THREADS=$val
         fi
+	if [ "$PRIVATE_ARG2" == "pin" ]; then
+		prefix_cmd="taskset -c 4-7"
+	fi
 fi
 
 mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
@@ -49,7 +54,7 @@ do
         cat /proc/schedstat >> /tmp/schedstat.log
 	pidstat -u 10 > /tmp/pidstat.log &
         
-        bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
+        $prefix_cmd bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
 
 	# finish futex profiling if needed
 	if [  "$PRIVATE_ARG2" == "futex" -a $i -eq 0 ]; then

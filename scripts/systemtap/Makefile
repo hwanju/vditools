@@ -38,3 +38,9 @@ trace_lhp: trace_lhp.stp
 
 trace_lock_holder_ple: trace_lock_holder_ple.stp
 	stap -v -r `uname -r` $@.stp -m $@
+
+# vamp
+vamp_debug: vamp_debug.stp
+	stap -v -r `uname -r` $@.stp -m $@
+vdi_load: vdi_load.stp
+	stap -v -r `uname -r` $@.stp -m $@
