@@ -129,6 +129,9 @@ for workload in $workload_list; do
 			if [ -e /tmp/kvm.debug ]; then
 				mv /tmp/kvm.debug $resdir/$workload_name.debug
 			fi
+			if [ "$trace_opt" != "" ]; then		# FIXME: manual
+				scp canh1:/root/vamp/latency/$workload_name.latency $resdir/
+			fi
 
 			echo "$workload_name is done! take a rest for 5 sec"
 			sleep 5

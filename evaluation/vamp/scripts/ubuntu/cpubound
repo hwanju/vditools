@@ -1,15 +1,20 @@
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
+prefix_cmd=
 NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 if [ "$MIXED_TRACE" == "1" ]; then
 	val=`echo $OPTIONAL_INFO | cut -d: -f2`
         if [ "$val" != "" ]; then
                 NR_THREADS=$val
         fi
+	if [ "$(echo $PRIVATE_ARG2 | grep pin)" != "" ]; then
+		prefix_cmd="taskset -c 4-7"
+	fi
 fi
+pidstat -h -u -r -d -w -l 10 > /tmp/pidstat.log &
 for i in `seq $NR_THREADS`; do 
-        /root/cpulimit/cpubound &
+        $prefix_cmd /root/cpulimit/cpubound &
 done
 
 while true; do
@@ -35,3 +40,5 @@ while true; do
 	fi
 	rm /tmp/query
 done
+killall -9 pidstat
+cat /tmp/pidstat.log | TO_HOST

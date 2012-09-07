@@ -8,7 +8,7 @@ if [ "$MIXED_TRACE" == "1" ]; then
         if [ "$val" != "" ]; then
                 NR_THREADS=$val
         fi
-	if [ "$PRIVATE_ARG2" == "pin" ]; then
+	if [ "$(echo $PRIVATE_ARG2 | grep pin)" != "" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
 fi

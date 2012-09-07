@@ -28,7 +28,7 @@ probe kernel.trace("kvm_load_info") {
                 "LI", $kvm->vm_id, $kvm->interactive_phase, $kvm->pre_monitor_load, $vm_load, $eff_vm_load, $reactive_gtask_load )
 }
 probe kernel.trace("kvm_gtask_stat") {
-        printf("%s %d %d %05x %d %d\n", "TS", $vm_id, $interactive_phase, $guest_task_id, $cpu_load, $flags)
+        printf("%s %d %d %05x %d %d\n", "TS", $kvm->vm_id, $kvm->interactive_phase, $gtask->id, $cpu_load, $gtask->flags)
 }
 probe kernel.trace("kvm_ui") {
         printf("%s %d %d %d\n", "UI", $kvm->vm_id, $event_type, $event_info)

@@ -57,15 +57,16 @@ if [ -e "$debug_module" ]; then
 	#fi
 	staprun $debug_module > /tmp/kvm.debug &
 fi
+main_guest=cag16
 if [ "$PRIVATE_ARG2" == "perf" ]; then
 	# perf
-	ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
-	ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+	ssh $main_guest "cat /proc/kallsyms" > /tmp/guest.kallsyms
+	ssh $main_guest "cat /proc/modules" > /tmp/guest.modules
 	pid=($(ps aux | grep ${VM_LIST[0]} | grep -v grep | awk '{print $2}'))
 	perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -p $pid -o /tmp/kvm.perf.data &
 elif [ "$PRIVATE_ARG2" == "perfall" ]; then
 	# perfall
-	ssh cag11 "cat /proc/kallsyms" > /tmp/guest.kallsyms
-	ssh cag11 "cat /proc/modules" > /tmp/guest.modules
+	ssh $main_guest "cat /proc/kallsyms" > /tmp/guest.kallsyms
+	ssh $main_guest "cat /proc/modules" > /tmp/guest.modules
 	perf kvm --host --guest --guestkallsyms=/tmp/guest.kallsyms --guestmodules=/tmp/guest.modules record -a -o /tmp/kvm.perf.data &
 fi
