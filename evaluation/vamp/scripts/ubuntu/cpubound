@@ -11,6 +11,9 @@ if [ "$MIXED_TRACE" == "1" ]; then
 	if [ "$(echo $PRIVATE_ARG2 | grep pin)" != "" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
+	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
+		vdiguest -d /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+	fi
 fi
 pidstat -h -u -r -d -w -l 10 > /tmp/pidstat.log &
 for i in `seq $NR_THREADS`; do 
@@ -41,4 +44,8 @@ while true; do
 	rm /tmp/query
 done
 killall -9 pidstat
+killall -9 vdiguest
+if [ -e /tmp/vdiguest.log ]; then
+	cat /tmp/vdiguest.log >> /tmp/pidstat.log
+fi
 cat /tmp/pidstat.log | TO_HOST

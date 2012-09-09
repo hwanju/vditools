@@ -17,6 +17,18 @@
 /* Parameters */
 int debug;			/* -d: debug enabled if 1 */
 int init_nr_fast_cpus = 2;	/* -f <val>: initial # of fast cpus */
+enum {
+	MODE_STATIC,
+	MODE_LOAD,
+	MODE_DYNAMIC,
+	MODE_END
+};
+char *mode_desc[] = {
+	"Static: # of fast & slow cpus are fixed in predefined numbers",
+	"Load: # of slow cpus is determined based on previous CPU loads of slow tasks",
+	"Dynamic: start with Static, and adjust # of fast cpus based on CPU loads on fast cpus"
+};
+int mode = MODE_STATIC;
 
 #define exit_with_msg(args...) do { fprintf(stderr, args); exit(-1); } while (0)
 #define debug_printf(args...)  do { if (debug) printf(args); } while (0)
@@ -201,14 +213,15 @@ static void isolate_slow_tasks(void)
 		restore_tasks();
 		return;
 	}
-
-	if (nr_cpus - nr_slow_cpus < init_nr_fast_cpus) {	/* short of fast cpus */
-		if (nr_cpus - init_nr_fast_cpus > 0)
-			nr_slow_cpus = nr_cpus - init_nr_fast_cpus;
-		else
-			nr_slow_cpus = 1;
+	if (mode == MODE_STATIC) {
+		nr_fast_cpus = init_nr_fast_cpus;
+		nr_slow_cpus = nr_cpus - nr_fast_cpus;
 	}
-	nr_fast_cpus = nr_cpus - nr_slow_cpus;
+	else if (mode == MODE_LOAD) {
+		if (nr_cpus - nr_slow_cpus < init_nr_fast_cpus)	/* short of fast cpus */
+			nr_slow_cpus = nr_cpus - init_nr_fast_cpus;
+		nr_fast_cpus = nr_cpus - nr_slow_cpus;
+	}
 
 	debug_printf("nr_fast cpus=%d, nr_slow cpus=%d (nr_slow_tasks=%d, init_nr_fast_cpus=%d)\n", 
 			nr_fast_cpus, nr_slow_cpus, nr_slow_tasks, init_nr_fast_cpus); 
@@ -355,7 +368,7 @@ int main (int argc, char *argv[])
 	int epfd = -1;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "df:")) != -1) {
+	while ((c = getopt (argc, argv, "df:m:")) != -1) {
 		switch (c) {
 			case 'd':
 				debug = 1;
@@ -363,15 +376,18 @@ int main (int argc, char *argv[])
 			case 'f':
 				init_nr_fast_cpus = atoi(optarg);
 				break;
+			case 'm':
+				mode = atoi(optarg);
+				break;
 			default:
 				exit_with_msg("Error: -%c is an invalid option!\n", c);
 		}
 	}
 	argc -= (optind - 1);
 
-	if (argc < 2)
-		exit_with_msg("Usage: %s <keyboard input device file> <mouse input device file> <others> ...\n", argv[0]);
-	printf("config: debug=%d init_nr_fast_cpus=%d\n", debug, init_nr_fast_cpus);
+	if (argc < 2 || mode >= MODE_END || mode < 0) {
+		exit_with_msg("Usage: %s [-d,-f <# of fast cpus>, -m <mode>] <keyboard input device file> <mouse input device file> <others> ...\n", argv[0]);
+	}
 
 	if ((getuid()) != 0)
 		exit_with_msg("%s", "Error: root privilege is required!\n");
@@ -384,6 +400,16 @@ int main (int argc, char *argv[])
 
 	if (nr_cpus == 1)
 		exit_with_msg("%s", "Error: work only on SMP guest!\n");
+
+	if (init_nr_fast_cpus > nr_cpus)
+		exit_with_msg("%s", "Error: initial # of fast cpus (%d) is greater than # of available CPUs (%d)!\n",
+				init_nr_fast_cpus, nr_cpus);
+
+	if (nr_cpus - init_nr_fast_cpus < 1)
+		init_nr_fast_cpus = 1;
+
+	printf("config: debug=%d init_nr_fast_cpus=%d mode=%d\n", debug, init_nr_fast_cpus, mode);
+	printf("\t[MODE] %s\n", mode_desc[mode]);
 
 	if (setup_cpuset() != 0)
 		exit_with_msg("%s", "Error: cpuset cgroup setup is failed!\n");

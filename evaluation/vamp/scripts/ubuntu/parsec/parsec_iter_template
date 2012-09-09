@@ -11,6 +11,9 @@ if [ "$MIXED_TRACE" == "1" ]; then
 	if [ "$(echo $PRIVATE_ARG2 | grep pin)" != "" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
+	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
+		vdiguest -d /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+	fi
 fi
 
 mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
@@ -115,6 +118,12 @@ done
 if [ "$PRIVATE_ARG2" == "futex" ]; then
 	sleep 10
 	cat /tmp/futex_prof.log >> /tmp/parsec.result
+fi
+
+# vdiguest extention debug result
+killall -9 vdiguest
+if [ -e /tmp/vdiguest.log ]; then
+	cat /tmp/vdiguest.log >> /tmp/parsec.result
 fi
 
 cat /tmp/parsec.result | TO_HOST
