@@ -46,7 +46,11 @@ vamp_debug: vamp_debug.stp
 	stap -v -r `uname -r` $@.stp -m $@
 vamp_sched_latency: vamp_sched_latency.stp
 	stap -v -r `uname -r` $@.stp -m $@
+vamp_sched: vamp_sched.stp
+	stap -v -r `uname -r` $@.stp -m $@
 vdi_load: vdi_load.stp
 	stap -v -r `uname -r` $@.stp -m $@
 sched_trace: sched_trace.stp
+	stap -v -r `uname -r` $@.stp -m $@
+vamp_audio_waker: vamp_audio_waker.stp
 	stap -v -r `uname -r` $@.stp -m $@

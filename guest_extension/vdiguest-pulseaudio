@@ -1,0 +1,23 @@
+#!/bin/bash
+
+activity_path=/tmp/vdiguest-audio-activity
+period=1
+if [ $# -eq 1 ]; then
+	period=$1
+fi
+
+trap 'echo 0 > $activity_path; exit' INT
+
+prev_nr_mem=0
+while true; do
+	nr_mem=`pacmd stat | grep "POOL:" | awk '{print $7}' | cut -d/ -f2`
+	if [ $nr_mem -gt $prev_nr_mem ]; then
+		audio_activity=1
+	else
+		audio_activity=0
+	fi
+	echo $audio_activity > $activity_path
+	prev_nr_mem=$nr_mem
+
+	sleep $period
+done

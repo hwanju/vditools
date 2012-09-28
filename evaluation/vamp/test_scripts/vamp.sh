@@ -6,7 +6,7 @@ project=vamp
 echo 0 > /sys/kernel/mm/ksm/run
 echo 2 > /sys/kernel/mm/ksm/run
 
-if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" -a "$npb_workloads" == "" ]; then
+if [ "$parsec_workloads" == "" -a "$interactive_workloads" == "" -a "$npb_workloads" == ""  -a "$ubuntu_workloads" == "" ]; then
 	source workloads/$project/workloads.inc
 fi
 if [ "$nr_iter" == "" ]; then
@@ -36,6 +36,9 @@ elif [ $(echo $workload_format | grep npb) ]; then
 elif [ $(echo $workload_format | grep interactive) ]; then
 	workload_list=$interactive_workloads
 	resdir=results/$project/_$workload_format
+elif [ $(echo $workload_format | grep ubuntu) ]; then
+	workload_list=$ubuntu_workloads
+	resdir=results/$project/_$workload_format
 else
 	workload_list=$(echo $workload_format | sed 's/+.*//g')
 	workload_list=$(echo $workload_list | sed 's/^[0-9]*//g')
@@ -55,6 +58,7 @@ for workload in $workload_list; do
 		workload_name=$(echo $workload_format | sed "s/parsec/$workload/g")
 		workload_name=$(echo $workload_name | sed "s/npb/$workload/g")
 		workload_name=$(echo $workload_name | sed "s/interactive/$workload/g")
+		workload_name=$(echo $workload_name | sed "s/ubuntu/$workload/g")
 		workload_name=$workload_name@$mode
 		workload_path=workloads/$project/$workload_name
 

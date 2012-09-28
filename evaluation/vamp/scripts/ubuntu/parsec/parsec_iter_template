@@ -1,6 +1,7 @@
 PACKAGE=
 TYPE=
 
+USER_HOME=/home/ubuntu1104
 prefix_cmd=
 NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 if [ "$MIXED_TRACE" == "1" ]; then
@@ -12,8 +13,9 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
 	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
-		vdiguest -d /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+		vdiguest -f 2 -d /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
+
 fi
 
 mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
@@ -21,6 +23,10 @@ cd ~/parsec-2.1
 mkdir -p pkgs/$TYPE/$PACKAGE/run/
 tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
 ####bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v"	# warmup run
+
+####if [ -e $USER_HOME/test.mp4 ]; then	# FIXME
+####	cat $USER_HOME/test.mp4 > /dev/null
+####fi
 
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
@@ -55,7 +61,7 @@ do
         cat /proc/stat >> /tmp/stat.log
         echo start_time=`date '+%s'` > /tmp/schedstat.log
         cat /proc/schedstat >> /tmp/schedstat.log
-	pidstat -u 10 > /tmp/pidstat.log &
+	pidstat -u -r -d -h 10 > /tmp/pidstat.log &
         
         $prefix_cmd bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
 
@@ -125,5 +131,16 @@ killall -9 vdiguest
 if [ -e /tmp/vdiguest.log ]; then
 	cat /tmp/vdiguest.log >> /tmp/parsec.result
 fi
+
+# if mixed with video, this log file exists
+if [ -e /tmp/video.log ]; then
+	cat /tmp/video.log >> /tmp/parsec.result
+fi
+for i in `seq 5`; do
+	if [ -e $USER_HOME/vlc.frames.$i ]; then
+		echo "FRAMETIME$i" >> /tmp/parsec.result
+		cat $USER_HOME/vlc.frames.$i >> /tmp/parsec.result
+	fi
+done
 
 cat /tmp/parsec.result | TO_HOST

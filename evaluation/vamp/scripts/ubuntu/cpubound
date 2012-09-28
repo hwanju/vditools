@@ -1,6 +1,7 @@
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
+USER_HOME=/home/ubuntu1104
 prefix_cmd=
 NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 if [ "$MIXED_TRACE" == "1" ]; then
@@ -48,4 +49,14 @@ killall -9 vdiguest
 if [ -e /tmp/vdiguest.log ]; then
 	cat /tmp/vdiguest.log >> /tmp/pidstat.log
 fi
+
+# if mixed with vlc, this log file exists
+if [ -e /tmp/vlc.log ]; then
+	cat /tmp/vlc.log >> /tmp/parsec.result
+fi
+if [ -e $USER_HOME/vlc.frames ]; then
+	echo "FRAMETIME" >> /tmp/parsec.result
+	cat $USER_HOME/vlc.frames >> /tmp/parsec.result
+fi
+
 cat /tmp/pidstat.log | TO_HOST

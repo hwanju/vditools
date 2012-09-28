@@ -1,0 +1,4 @@
+libvlccore4_1.1.9-1ubuntu1.3_amd64.deb
+	ubuntu 11.04 natty
+	add logging for time of each displayed frame
+	recording time series in vlc.frames in the current directory

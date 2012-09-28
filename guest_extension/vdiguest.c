@@ -34,6 +34,7 @@ int mode = MODE_STATIC;
 #define debug_printf(args...)  do { if (debug) printf(args); } while (0)
 
 #define SLOW_TASK_PATH		"/proc/kvm_slow_task"
+#define AUDIO_ACTIVITY_PATH	"/tmp/vdiguest-audio-activity"
 
 #define CPUSET_PATH		"/dev/cpuset/vdiguest"
 #define SLOW_GROUP_NAME		"slow"
@@ -200,6 +201,20 @@ static int slow_task_exist(void)
 	return ret;
 }
 
+static int audio_activity_exist(void)
+{
+	FILE *fp;
+	int audio_activity = 0;
+	if ((fp = fopen(AUDIO_ACTIVITY_PATH, "r")) == NULL)
+		return 0;
+	fscanf(fp, "%d", &audio_activity);
+	fclose(fp);
+
+	debug_printf("audio activity exists -> %s\n", audio_activity ? "true" : "false");
+
+	return audio_activity;
+}
+
 static void isolate_slow_tasks(void)
 {
 	int nr_fast_cpus, nr_slow_cpus;
@@ -233,10 +248,15 @@ static void isolate_slow_tasks(void)
 
 static void stat_monitor(int arg)
 {
+	int audio_activity = audio_activity_exist();
+
 	if (!slow_task_exist()) {
 		restore_tasks();
-		return;
+		if (!audio_activity)
+			return;
 	}
+	else if (audio_activity)
+		isolate_slow_tasks();
 	start_stat_monitor();
 }
 
@@ -251,14 +271,12 @@ static void monitor_input(int epfd)
 
 	while(1) {
 		nr_events = epoll_wait(epfd, events, MAX_INPUT_EVENTS, 100);
-		if (nr_events < 0)
+		if (nr_events < 0 || errno == EINTR)
 			continue;
 		for (i = 0; i < nr_events; i++) {
 			idesc = (struct input_descriptor *)events[i].data.ptr;
-			if (read(idesc->fd, input_evt, size * 64) < size) {
-				perror("read event");
+			if (read(idesc->fd, input_evt, size * 64) < size)
 				continue;
-			}
 
 			if (idesc->type == INPUT_TYPE_KEYBOARD) {
 				if (input_evt[0].value != ' ' && 
