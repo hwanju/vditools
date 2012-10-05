@@ -16,6 +16,7 @@
 
 /* Parameters */
 int debug;			/* -d: debug enabled if 1 */
+int audio_monitor = 0;		/* -a: audio monitor if 1 */
 int init_nr_fast_cpus = 2;	/* -f <val>: initial # of fast cpus */
 enum {
 	MODE_STATIC,
@@ -205,6 +206,8 @@ static int audio_activity_exist(void)
 {
 	FILE *fp;
 	int audio_activity = 0;
+	if (!audio_monitor)
+		return 0;
 	if ((fp = fopen(AUDIO_ACTIVITY_PATH, "r")) == NULL)
 		return 0;
 	fscanf(fp, "%d", &audio_activity);
@@ -386,8 +389,11 @@ int main (int argc, char *argv[])
 	int epfd = -1;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "df:m:")) != -1) {
+	while ((c = getopt (argc, argv, "adf:m:")) != -1) {
 		switch (c) {
+			case 'a':
+				audio_monitor = 1;
+				break;
 			case 'd':
 				debug = 1;
 				break;

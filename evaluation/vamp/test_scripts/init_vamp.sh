@@ -8,7 +8,7 @@ on=$1
 nr_params=6
 param_path=(/proc/sys/kernel/kvm_vamp /dev/null /proc/sys/kernel/kvm_partial_boost /sys/module/kvm/parameters/bg_load_thresh_pct /sys/module/kvm/parameters/load_monitor_window /sys/module/kvm/parameters/max_interactive_phase_msec)
 
-default_params="19:4:1:60:30000000:5000"
+default_params="5:8:0:50:30000000:5000"
 if [ $on -eq 0 ]; then
 	params="0:0:0:0:0:0"
 elif [ $# -ge 2 ]; then

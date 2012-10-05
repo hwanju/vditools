@@ -34,6 +34,8 @@ fi
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
+sleep 5		# wait for the start of background workload, if any
+
 i=1
 echo -n > $latency_dir/WORKLOAD_NAME.latency
 echo -n > $out_dir/WORKLOAD_NAME.out
