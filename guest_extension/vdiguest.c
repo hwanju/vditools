@@ -15,9 +15,9 @@
 #include <sched.h>
 
 /* Parameters */
-int debug;			/* -d: debug enabled if 1 */
 int audio_monitor = 0;		/* -a: audio monitor if 1 */
 int init_nr_fast_cpus = 2;	/* -f <val>: initial # of fast cpus */
+int verbose;			/* -v: verbose level */
 enum {
 	MODE_STATIC,
 	MODE_LOAD,
@@ -32,7 +32,11 @@ char *mode_desc[] = {
 int mode = MODE_STATIC;
 
 #define exit_with_msg(args...) do { fprintf(stderr, args); exit(-1); } while (0)
-#define debug_printf(args...)  do { if (debug) printf(args); } while (0)
+
+#define VB_MAJOR	1
+#define VB_MINOR	2
+#define debug_printf(level, args...)  \
+	do { if (level <= verbose) printf(args); } while (0)
 
 #define SLOW_TASK_PATH		"/proc/kvm_slow_task"
 #define AUDIO_ACTIVITY_PATH	"/tmp/vdiguest-audio-activity"
@@ -61,10 +65,11 @@ int mode = MODE_STATIC;
 #define INPUT_TYPE_MOUSE	1
 /* currently 2~ types are not defined */
 
-#define STAT_MONITOR_PERIOD_US	500000
-#define start_stat_monitor()	do { ualarm(STAT_MONITOR_PERIOD_US, 0); } while(0)
+unsigned long stat_mon_period_us = 1000000;
+#define start_stat_monitor()	do { ualarm(stat_mon_period_us, 0); } while(0)
 
 int nr_cpus;	/* # of available CPUs */
+int my_pid;
 
 struct input_descriptor {
 	int fd;
@@ -110,7 +115,7 @@ static int filewrite(const char *path, const char *str)
 	ret = safewrite(fd, str, strlen(str));
 	close(fd);
 
-	debug_printf("write %s to %s\n", str, path);
+	debug_printf(VB_MAJOR, "write %s to %s\n", str, path);
 
 	return ret;
 }
@@ -123,13 +128,36 @@ static int filewrite(const char *path, const char *str)
 	ret;	\
 }) 
 
+static char *get_name_by_pid(int pid)
+{
+	static char comm[256];
+	static char *na = "N/A\n";
+	char comm_path[32];
+	FILE *fp;
+
+	snprintf(comm_path, 32, "/proc/%d/comm", pid);
+	if ((fp = fopen(comm_path, "r")) == NULL)
+		return na;
+	fgets(comm, 256, fp);
+	fclose(fp);
+
+	return comm ? comm : na;
+}
+
+#define debug_procname_print(pid)	\
+	do { debug_printf(VB_MAJOR, "\t%d=%s", pid, get_name_by_pid(pid)); } while(0)
+
 static void move_slow_tasks(int nr_slow_tasks, struct slow_task *slow_tasks, int nr_slow_cpus)
 {
 	int i;
 
 	fileprintf(SLOW_CPUS_PATH, "%d-%d", nr_cpus - nr_slow_cpus, nr_cpus - 1);
-	for (i = 0; i < nr_slow_tasks; i++)
+	for (i = 0; i < nr_slow_tasks; i++) {
+		if (my_pid == slow_tasks[i].task_id)	/* unlikely */
+			continue;
 		fileprintf(SLOW_PROCS_PATH, "%d", slow_tasks[i].task_id);
+		debug_procname_print(slow_tasks[i].task_id);
+	}
 }
 
 static void mod_fast_cpus(int nr_fast_cpus)
@@ -146,8 +174,17 @@ static void move_fast_tasks(void)
 				ROOT_PROCS_PATH);
 		return;
 	}
-	while(fscanf(fp, "%d", &pid) == 1)
+	while(fscanf(fp, "%d", &pid) == 1) {
 		fileprintf(FAST_PROCS_PATH, "%d", pid);
+		debug_procname_print(pid);
+	}
+
+	if (verbose >= VB_MAJOR) {
+		debug_printf(VB_MAJOR, "Process list failed to move to fast cpu group\n");
+		fseek(fp, 0, SEEK_SET);
+		while(fscanf(fp, "%d", &pid) == 1)
+			debug_procname_print(pid);
+	}
 	fclose(fp);
 }
 
@@ -161,8 +198,10 @@ static void restore_tasks(void)
 		return;
 	}
 	mod_fast_cpus(nr_cpus);
-	while(fscanf(fp, "%d", &pid) == 1)
+	while(fscanf(fp, "%d", &pid) == 1) {
 		fileprintf(FAST_PROCS_PATH, "%d", pid);
+		debug_procname_print(pid);
+	}
 	fclose(fp);
 }
 
@@ -177,10 +216,14 @@ static int get_slow_tasks(struct slow_task *slow_tasks, int *nr_slow_cpus)
 
 	while(fscanf(fp, "%d %d", &slow_tasks[n].task_id, &slow_tasks[n].load_pct) == 2) {
 		load_pct += slow_tasks[n].load_pct;
+
+		debug_printf(VB_MAJOR, "\t%d pct load: ", slow_tasks[n].load_pct);
+		debug_procname_print(slow_tasks[n].task_id);
+
 		n++;
 	}
 	*nr_slow_cpus = (load_pct + 99) / 100;
-	debug_printf("aggregated load of slow tasks = %d%% (nr_slow_cpus=%d)\n", 
+	debug_printf(VB_MAJOR, "aggregated load of slow tasks = %d%% (nr_slow_cpus=%d)\n", 
 			load_pct, *nr_slow_cpus);
 	fclose(fp);
 
@@ -197,7 +240,7 @@ static int slow_task_exist(void)
 	ret = fscanf(fp, "%d", &dummy) == 1;
 	fclose(fp);
 
-	debug_printf("check if slow tasks exist -> %s\n", ret ? "true" : "false");
+	debug_printf(VB_MINOR, "\tcheck if slow tasks exist -> %s\n", ret ? "true" : "false");
 
 	return ret;
 }
@@ -213,7 +256,7 @@ static int audio_activity_exist(void)
 	fscanf(fp, "%d", &audio_activity);
 	fclose(fp);
 
-	debug_printf("audio activity exists -> %s\n", audio_activity ? "true" : "false");
+	debug_printf(VB_MINOR, "\taudio activity exists -> %s\n", audio_activity ? "true" : "false");
 
 	return audio_activity;
 }
@@ -241,7 +284,7 @@ static void isolate_slow_tasks(void)
 		nr_fast_cpus = nr_cpus - nr_slow_cpus;
 	}
 
-	debug_printf("nr_fast cpus=%d, nr_slow cpus=%d (nr_slow_tasks=%d, init_nr_fast_cpus=%d)\n", 
+	debug_printf(VB_MAJOR, "# nr_fast cpus=%d, nr_slow cpus=%d (nr_slow_tasks=%d, init_nr_fast_cpus=%d)\n", 
 			nr_fast_cpus, nr_slow_cpus, nr_slow_tasks, init_nr_fast_cpus); 
 
 	move_slow_tasks(nr_slow_tasks, slow_tasks, nr_slow_cpus);
@@ -271,6 +314,7 @@ static void monitor_input(int epfd)
 	struct input_event input_evt[64];
 	int size = sizeof (struct input_event);
 	struct input_descriptor *idesc;
+	static unsigned int seq_num = 1;
 
 	while(1) {
 		nr_events = epoll_wait(epfd, events, MAX_INPUT_EVENTS, 100);
@@ -286,17 +330,20 @@ static void monitor_input(int epfd)
 				    input_evt[1].value == 1 && 
 				    input_evt[1].type == 1 &&
 				    input_evt[1].code == 28) {	/* enter key press */
+					debug_printf (VB_MAJOR, "\nI%d: keyboard (code=%d)\n", 
+							seq_num++,
+							(input_evt[1].code));
 					isolate_slow_tasks();
-					debug_printf ("Code[%d]\n", (input_evt[1].code));
 				}
 			}
 			else if (idesc->type == INPUT_TYPE_MOUSE) {
 				if (input_evt[1].value == 0 &&	/* mouse click released */
 				    input_evt[1].type == 1) {
-					isolate_slow_tasks();
-					debug_printf("[0].value=%x [0].type=%x [1].value=%x [1].type=%x\n",
+					debug_printf(VB_MAJOR, "\nI%d: mouse ([0].value=%x [0].type=%x [1].value=%x [1].type=%x)\n",
+						seq_num++,
 						input_evt[0].value, input_evt[0].type,
 						input_evt[1].value, input_evt[1].type);
+					isolate_slow_tasks();
 				}
 			}
 		}
@@ -389,19 +436,23 @@ int main (int argc, char *argv[])
 	int epfd = -1;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "adf:m:")) != -1) {
+	while ((c = getopt (argc, argv, "af:m:p:v:")) != -1) {
 		switch (c) {
 			case 'a':
 				audio_monitor = 1;
 				break;
-			case 'd':
-				debug = 1;
 				break;
 			case 'f':
 				init_nr_fast_cpus = atoi(optarg);
 				break;
 			case 'm':
 				mode = atoi(optarg);
+				break;
+			case 'p':
+				stat_mon_period_us = atoi(optarg) * 1000;	/* ms->us */
+				break;
+			case 'v':
+				verbose = atoi(optarg);
 				break;
 			default:
 				exit_with_msg("Error: -%c is an invalid option!\n", c);
@@ -432,7 +483,10 @@ int main (int argc, char *argv[])
 	if (nr_cpus - init_nr_fast_cpus < 1)
 		init_nr_fast_cpus = 1;
 
-	printf("config: debug=%d init_nr_fast_cpus=%d mode=%d\n", debug, init_nr_fast_cpus, mode);
+	my_pid = getpid();
+
+	printf("config: init_nr_fast_cpus=%d mode=%d stat_mon_period_us=%lums verbose=%d\n", 
+			init_nr_fast_cpus, mode, stat_mon_period_us / 1000, verbose);
 	printf("\t[MODE] %s\n", mode_desc[mode]);
 
 	if (setup_cpuset() != 0)

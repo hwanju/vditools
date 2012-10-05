@@ -13,7 +13,17 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
 	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
-		vdiguest -f 2 -d /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+		param1=$(echo $PRIVATE_ARG2 | cut -d: -f2)
+		param2=$(echo $PRIVATE_ARG2 | cut -d: -f3)
+		nr_fast_cpus=2
+		if [ "$param1" != "" ]; then
+			nr_fast_cpus=$param1
+		fi
+		opt=""
+		if [ "$param2" == "d" ]; then
+			opt="-m 2"	# dynamic
+		fi
+		vdiguest -f $nr_fast_cpus -v 2 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
 
 fi

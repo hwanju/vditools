@@ -13,7 +13,7 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
 	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
-		vdiguest -d /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+		vdiguest -f 2 -v 2 /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
 fi
 pidstat -h -u -r -d -w -l 10 > /tmp/pidstat.log &

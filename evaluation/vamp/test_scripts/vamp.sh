@@ -45,6 +45,10 @@ else
 	resdir=results/$project
 fi
 
+if [ "$arg2" != "" -a "$res_postfix" == "" ]; then
+	res_postfix=-$arg2
+fi
+
 if [ "$2" == "all" ]; then
         mode_list=$avail_mode_list
 else
