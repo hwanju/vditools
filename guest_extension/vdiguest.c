@@ -443,7 +443,6 @@ int main (int argc, char *argv[])
 			case 'a':
 				audio_monitor = 1;
 				break;
-				break;
 			case 'f':
 				init_nr_fast_cpus = atoi(optarg);
 				break;
