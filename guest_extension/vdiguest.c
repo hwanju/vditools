@@ -178,14 +178,16 @@ static void move_fast_tasks(void)
 		fileprintf(FAST_PROCS_PATH, "%d", pid);
 		debug_procname_print(pid);
 	}
+	fclose(fp);
 
 	if (verbose >= VB_MAJOR) {
+		if ((fp = fopen(ROOT_PROCS_PATH, "r")) == NULL)
+			return;
 		debug_printf(VB_MAJOR, "Process list failed to move to fast cpu group\n");
-		fseek(fp, 0, SEEK_SET);
 		while(fscanf(fp, "%d", &pid) == 1)
 			debug_procname_print(pid);
+		fclose(fp);
 	}
-	fclose(fp);
 }
 
 static void restore_tasks(void)
