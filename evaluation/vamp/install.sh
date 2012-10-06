@@ -28,6 +28,7 @@ fi
 
 ./uninstall.sh $skbench_dir
 
+export SKBENCH_DIR=$skbench_dir
 make
 ln -sf $PWD/config $skbench_dir/
 ln -sf $PWD/virsh $skbench_dir/

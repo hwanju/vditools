@@ -12,5 +12,6 @@ if [ ! -e $skbench_dir ]; then
 	exit
 fi
 
+export SKBENCH_DIR=$skbench_dir
 make clean
 rm -f $skbench_dir/config $skbench_dir/virsh $skbench_dir/scripts/$eval_name $skbench_dir/workloads/$eval_name $skbench_dir/test_scripts $skbench_dir/chcfg $skbench_dir/results/$eval_name

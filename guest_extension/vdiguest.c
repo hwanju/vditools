@@ -462,7 +462,7 @@ int main (int argc, char *argv[])
 	argc -= (optind - 1);
 
 	if (argc < 2 || mode >= MODE_END || mode < 0) {
-		exit_with_msg("Usage: %s [-d,-f <# of fast cpus>, -m <mode>] <keyboard input device file> <mouse input device file> <others> ...\n", argv[0]);
+		exit_with_msg("Usage: %s [-a: audio monitor if set, -v <verbose level>, -f <# of fast cpus>, -m <mode>] <keyboard input device file> <mouse input device file> <others> ...\n", argv[0]);
 	}
 
 	if ((getuid()) != 0)
