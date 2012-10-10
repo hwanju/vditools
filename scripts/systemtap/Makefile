@@ -54,3 +54,5 @@ sched_trace: sched_trace.stp
 	stap -v -r `uname -r` $@.stp -m $@
 vamp_audio_waker: vamp_audio_waker.stp
 	stap -v -r `uname -r` $@.stp -m $@
+vamp_bg: vamp_bg.stp
+	stap -v -r `uname -r` $@.stp -m $@

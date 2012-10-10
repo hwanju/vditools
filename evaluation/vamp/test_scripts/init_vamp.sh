@@ -30,6 +30,21 @@ fi
 for i in `seq $nr_params`; do
 	param_idx=$(( $i - 1 ))
 	val=`echo $params | cut -d: -f$i`
+	if [ $i -eq 1 ]; then
+		if [ "$val" == "N" ]; then
+			rmmod kvm
+			rmmod kvm_intel
+			modprobe kvm_intel track_cr3_load=0
+			modprobe kvm load_monitor_enabled=0
+			val=0
+			echo "CR3 tracking and load monitoring disabled."
+		else
+			rmmod kvm
+			rmmod kvm_intel
+			modprobe kvm_intel
+			modprobe kvm
+		fi
+	fi
 	echo $val > ${param_path[$param_idx]}
         if [ "${param_path[$param_idx]}" == "/dev/null" ]; then
                 echo "mixed_parallelism = $val"

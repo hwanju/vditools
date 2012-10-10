@@ -1,0 +1,51 @@
+USER_HOME=/home/ubuntu1104
+NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
+if [ "$MIXED_TRACE" == "1" ]; then
+	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
+		param1=$(echo $PRIVATE_ARG2 | cut -d: -f2)
+		param2=$(echo $PRIVATE_ARG2 | cut -d: -f3)
+		nr_fast_cpus=2
+		if [ "$param1" != "" ]; then
+			nr_fast_cpus=$param1
+		fi
+		opt=""
+		if [ "$param2" == "d" ]; then
+			opt="-m 2"	# dynamic
+		fi
+		vdiguest -f $nr_fast_cpus -v 2 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+	fi
+
+	# event-based profiling
+	eventprof -t soffice -p 7 /dev/input/event1 /dev/input/event2 > /tmp/eventprof.log &
+fi
+
+while true; do
+	if [ -e /tmp/interactive_stop ]; then
+		break
+	fi
+	sleep 10
+done
+# vdiguest extention debug result
+killall -9 vdiguest
+if [ -e /tmp/vdiguest.log ]; then
+	cat /tmp/vdiguest.log >> /tmp/idle.result
+fi
+
+# eventprof result
+killall -9 eventprof
+if [ -e /tmp/eventprof.log ]; then
+	echo "EVENTPROF" >> /tmp/idle.result
+	cat /tmp/eventprof.log >> /tmp/idle.result
+fi
+
+# if mixed with video, this log file exists
+if [ -e /tmp/video.log ]; then
+	cat /tmp/video.log >> /tmp/idle.result
+fi
+for i in `seq 5`; do
+	if [ -e $USER_HOME/vlc.frames.$i ]; then
+		echo "FRAMETIME$i" >> /tmp/idle.result
+		cat $USER_HOME/vlc.frames.$i >> /tmp/idle.result
+	fi
+done
+cat /tmp/idle.result | TO_HOST

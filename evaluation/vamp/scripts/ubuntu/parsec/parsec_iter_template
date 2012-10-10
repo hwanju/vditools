@@ -26,6 +26,8 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		vdiguest -f $nr_fast_cpus -v 2 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
 
+	# event-based profiling
+	eventprof -t soffice -p 7 /dev/input/event1 /dev/input/event2 > /tmp/eventprof.log &
 fi
 
 mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
@@ -140,6 +142,13 @@ fi
 killall -9 vdiguest
 if [ -e /tmp/vdiguest.log ]; then
 	cat /tmp/vdiguest.log >> /tmp/parsec.result
+fi
+
+# eventprof result
+killall -9 eventprof
+if [ -e /tmp/eventprof.log ]; then
+	echo "EVENTPROF" >> /tmp/parsec.result
+	cat /tmp/eventprof.log >> /tmp/parsec.result
 fi
 
 # if mixed with video, this log file exists

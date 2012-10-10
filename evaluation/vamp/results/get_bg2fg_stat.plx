@@ -17,5 +17,7 @@ foreach $f (@files) {
 		$nr_vcpu_task_switch -= $prev_nr_vcpu_task_switch;
 		$nr_vcpu_bg2fg_switch -= $prev_nr_vcpu_bg2fg_switch;
 		printf "$f: %.3lf%% ($nr_vcpu_bg2fg_switch / $nr_vcpu_task_switch)\n", $nr_vcpu_bg2fg_switch * 100 / $nr_vcpu_task_switch;
+		$total_vcpu_bg2fg_switch += $nr_vcpu_bg2fg_switch;
 	}
 }
+print "# total_vcpu_bg2fg_switch=$total_vcpu_bg2fg_switch\n";

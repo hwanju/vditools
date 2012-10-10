@@ -12,6 +12,9 @@ else {
 }
 
 open FD, $fn or die "file open error: $fn\n";
+$log_fn = $fn;
+$log_fn =~ s/\.\w+$/-$tname\.log/g;
+open LFD, ">$log_fn";
 
 my @accum_exec_time_ns;
 my %time_quantum;
@@ -22,10 +25,10 @@ sub account_time_quantum {
 	if ($tid && $time) {
 		push(@{$time_quantum{$tid}}, $time);
 
-		print "\taccount: $tid <- $time\n" if $debug;
+		print LFD "\taccount: $tid <- $time\n" if $debug;
 	}
 	else {
-		print "\taccount: ignored\n" if $debug;
+		print LFD "\taccount: ignored\n" if $debug;
 	}
 }
 
@@ -35,7 +38,7 @@ sub accum_time_quantum {
 
 	$accum_exec_time_ns[$vid] += $time;
 
-	print "\taccum: $vid += $time = $accum_exec_time_ns[$vid]\n" if $debug;
+	print LFD "\taccum: $vid += $time = $accum_exec_time_ns[$vid]\n" if $debug;
 }
 
 while(<FD>) {
@@ -48,7 +51,7 @@ while(<FD>) {
 		$prev_state = $5;
 		$nr_gtask_switch = $6;
 
-		print "$_" if $debug;
+		print LFD "$_" if $debug;
 
 		if ($nr_gtask_switch == 1) {	# first task
 			if ($prev_state) {	# desched with runnable
@@ -67,7 +70,7 @@ while(<FD>) {
 			}
 			else {
 				if ($nr_gtask_switch == 2 && $prev_state == 0) {
-					print "\taccount: ignore the firsly task's time after blocked\n" if $debug;
+					print LFD "\taccount: ignore the firsly task's time after blocked\n" if $debug;
 				}
 				else {
 					account_time_quantum($prev_task_id[$vcpu_id], 
@@ -83,19 +86,19 @@ while(<FD>) {
 
 foreach $task_name (sort keys %task_count) {
 	foreach $task_id (sort {$task_count{$task_name}{$b} <=> $task_count{$task_name}{$a}} keys %{$task_count{$task_name}}) {
-		print "$task_name\t$task_id\t$task_count{$task_name}{$task_id}\n";
+		print LFD "$task_name\t$task_id\t$task_count{$task_name}{$task_id}\n";
 	}
 }
 
 foreach $task_id (sort {$task_count{$tname}{$b} <=> $task_count{$tname}{$a}} keys %{$task_count{$tname}}) {
-	print "$tname\t$task_id\t$task_count{$tname}{$task_id}\n";
+	print LFD "$tname\t$task_id\t$task_count{$tname}{$task_id}\n";
 	$designated_task_id = $task_id if !defined($designated_task_id) && $task_id ne "01a03";
 }
-print "designated_task_id = $designated_task_id\n";
+print LFD "designated_task_id = $designated_task_id\n";
 
 foreach $task_id (keys %time_quantum) {
 	next if ($task_id ne $designated_task_id);
-	print "$task_id\n";
+	print LFD "$task_id\n";
 	$total = int(@{$time_quantum{$task_id}});
 	$step = 100 / $total;
 	$out_fn = $fn;
