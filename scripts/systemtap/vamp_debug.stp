@@ -1,0 +1,335 @@
+#!/usr/bin/stap -v
+
+global id
+global log_enabled
+global global_log_enabled
+////global prev_gtask_flags
+////global bg2fg
+////global fg2fg
+global prev_wait_sum
+global wait_time
+////global bg2fg_wait_time
+////global fg2fg_wait_time
+////global nr_gtask_switch
+global ipi_from_fg
+////global bg2fg_ipi_from_fg
+global debug
+global boost_flag
+global tid_to_vcpu_id
+
+probe begin {
+	debug = 1
+	global_log_enabled = 1
+}
+
+function waker_id(addr) {
+	if (addr == 0)
+		return -1
+	return @cast(addr, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->id
+}
+function audio_cnt(addr) {
+	if (addr == 0)
+		return -1
+	return @cast(addr, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->audio_count->counter
+}
+
+probe kernel.trace("kvm_load_check") {
+        //log_enabled[$vm_id] = $op
+	//global_log_enabled = $op
+	printf ("%d LC %d d%d\n", gettimeofday_us(), $op, $vm_id)
+}
+probe kernel.trace("kvm_ui") {
+	if (debug) {
+		load_input = $event_type == 3 || ($event_type == 0 && $event_info == 28)
+        	if (load_input)
+        	        id++
+        	printf("%d  UI d%d et=%d ei=%d id=%d%s\n", gettimeofday_us(), $kvm->vm_id, $event_type, $event_info, id, load_input ? "+" : "")
+	}
+}
+probe kernel.trace("kvm_vcpu_switch") {
+	log_enabled[pid()] = 1
+	if ($op == 1) 
+		tid_to_vcpu_id[tid()] = $vcpu->vcpu_id
+        if (global_log_enabled) {
+		if (debug)
+			printf( "%d %s d%d_v%d-p%d s=%d et=%d/%d bf=%d rwaker=%05x rwake_time=%d\n", 
+				gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu->vcpu_id, cpu(), $vcpu->state, 
+				$vcpu->bg_exec_time, $vcpu->exec_time, boost_flag[tid()], 
+				waker_id($vcpu->remote_waker_gtask->counter),
+				$vcpu->remote_wake_timestamp->counter)
+		if ($op == 0) /* depart */
+			ipi_from_fg[pid(), $vcpu->vcpu_id] = 0
+        }
+}
+probe kernel.trace("kvm_ipi") {
+	if (log_enabled[pid()] && $vector == 0xfd) {	// resched
+		if (debug)
+			printf("%d IPI %x %s d%d_v%d d%d_v%d pgd=%05x src_waker=%05x lwaker=%05x wtime=%d caller=%d tgid=%d pid=%d ret=%x\n", 
+				gettimeofday_us(), $vector, kernel_string($src_vcpu->arch->gt->gtask->task_name),
+				pid(), $src_vcpu->vcpu_id, pid(), $dst_vcpu->vcpu_id,
+				$src_vcpu->arch->gt->gtask->as_root >> 12,
+				waker_id($src_vcpu->local_waker_gtask->counter),
+				waker_id($dst_vcpu->local_waker_gtask->counter),
+				$dst_vcpu->remote_wake_timestamp->counter,
+				$src_vcpu->arch->gt->gtask->debug[0],
+				$src_vcpu->arch->gt->gtask->debug[1],
+				$src_vcpu->arch->gt->gtask->debug[2],
+				$src_vcpu->arch->gt->gtask->debug64[0]
+				)
+		if (@cast($src_vcpu->cur_guest_task, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->flags == 0)
+			ipi_from_fg[pid(), $dst_vcpu->vcpu_id] = 1
+	}
+}
+probe kernel.trace("kvm_apic_accept_irq") {
+	if (log_enabled[pid()]) {
+		if (debug)
+			printf("%d APIC %x d%d_v%d dm=%d tm=%d coal=%d \n", 
+				gettimeofday_us(), $vec, pid(), $apicid, 
+				$dm, $tm, $coalesced)
+	}
+}
+probe kernel.trace("kvm_pic_set_irq") {
+	if (log_enabled[pid()]) {
+		if (debug)
+			printf("%d PIC %x ch=%d d%d\n", gettimeofday_us(), $pin, $chip, pid())
+	}
+}
+probe kernel.trace("kvm_ioapic_set_irq") {
+	if (log_enabled[pid()]) {
+		if (debug)
+			printf("%d IOAPIC pin=%x bit=%x coal=%d d%d\n", gettimeofday_us(), $pin, $e, $coalesced, pid())
+	}
+}
+probe kernel.trace("kvm_set_irq") {
+	if (log_enabled[pid()]) {
+		if (debug)
+			printf("%d SIQ %x d%d lvl=%d id=%d\n", gettimeofday_us(), $gsi, pid(), $level, $irq_source_id)
+	}
+}
+probe __scheduler.ctxswitch.tp {
+	prev_wait_sum[prev_tid] = $prev->se->statistics->wait_sum
+	if (next_tid in prev_wait_sum)
+		wait_time[next_tid] = ($next->se->statistics->wait_sum - prev_wait_sum[next_tid]) / 1000	/* in us */
+	////nr_gtask_switch[next_tid] = 0
+	boost_flag[next_tid] = $next->se->boost_flag
+
+	printf("%d S d%d_%s%d-p%d:f%x->d%d_%s%d-p%d:f%x\n", 
+				gettimeofday_us(),
+				prev_pid, prev_tid in tid_to_vcpu_id? "v" : "t", 
+				prev_tid in tid_to_vcpu_id? tid_to_vcpu_id[prev_tid] : prev_tid, cpu(),
+				$prev->se->vcpu_flags,
+				next_pid, next_tid in tid_to_vcpu_id? "v" : "t", 
+				next_tid in tid_to_vcpu_id ? tid_to_vcpu_id[next_tid] : next_tid, cpu(),
+				$next->se->vcpu_flags)
+}
+probe kernel.trace("kvm_gthread_switch") {
+	////cur_tid = tid()
+	vcpu_id = $vcpu->vcpu_id
+	guest_task_id = $vcpu->cur_guest_task ? $vcpu->cur_guest_task->id : 0
+	flags = $vcpu->cur_guest_task ? $vcpu->cur_guest_task->flags : -1
+	bg_conf = $vcpu->cur_guest_task ? $vcpu->cur_guest_task->bg_conf : -1
+	task_name = kernel_string($vcpu->arch->gt->gtask->task_name)
+	para_id = $vcpu->arch->gt->gtask->task_id
+	as_root = $vcpu->arch->gt->gtask->as_root
+
+	if (log_enabled[pid()] && debug)
+		printf( "%d   %s d%d_v%d-p%d t=%05x f=%d n=%s id=%d pgd=%05x bg=%d tq=%d rwaker=%05x waker=%05x wval=%d wake_time=%d wtgid=%d(%d) ptgid=%d(%d)\n", gettimeofday_us(), $op ? "GA" : "GD", pid(), vcpu_id, cpu(), guest_task_id, flags, $op ? task_name : "N/A", $op ? para_id : 0, $op ? as_root >> 12 : 0, bg_conf, $exec_time, 
+		waker_id($vcpu->remote_waker_gtask->counter),
+		waker_id($vcpu->local_waker_gtask->counter),
+		$vcpu->remote_waker_valid,
+		$vcpu->remote_wake_timestamp->counter,
+		$vcpu->arch->gt->gtask->debug[0] == 5 ? $vcpu->arch->gt->gtask->debug[1] : -1,
+		$vcpu->arch->gt->gtask->debug[0] == 5 ? $vcpu->arch->gt->gtask->debug[2] : -1,
+		$vcpu->arch->gt->gtask->debug[3],
+		$vcpu->arch->gt->gtask->debug[4])
+	////if (log_enabled[pid()] && $op == 1) { /* arrive */
+	////	nr_gtask_switch[cur_tid]++
+	////	if (nr_gtask_switch[cur_tid] == 2 && flags == 0) { /* 2nd sched */
+	////		if (prev_gtask_flags[cur_tid]) {
+	////			bg2fg[guest_task_id, task_name, para_id, as_root] <<< 1
+	////			if (cur_tid in wait_time) {
+	////				bg2fg_wait_time[pid(), guest_task_id, task_name] <<< wait_time[cur_tid]
+	////				if (ipi_from_fg[pid(), vcpu_id])
+	////					bg2fg_ipi_from_fg[pid(), guest_task_id, task_name] <<< 1
+	////				if (debug)
+	////					printf("\t\tbg2fg d%d_v%d-p%d t=%05x f=%d n=%s ip=%d wt=%d%s\n", pid(), vcpu_id, cpu(), guest_task_id, flags, task_name, ipi_from_fg[pid(), vcpu_id], wait_time[cur_tid], wait_time[cur_tid] > 1000 ? "@" : "")
+	////			}
+	////		}
+	////		else {
+	////			fg2fg[guest_task_id, task_name, para_id, as_root] <<< 1
+	////			if (cur_tid in wait_time) {
+	////				fg2fg_wait_time[pid(), guest_task_id, task_name] <<< wait_time[cur_tid]
+	////				if (debug)
+	////					printf("\t\tfg2fg d%d_v%d-p%d t=%05x f=%d n=%s\n", pid(), vcpu_id, cpu(), guest_task_id, flags, task_name)
+	////			}
+	////		}
+	////	}
+	////}
+	////else {		// depart
+	////	prev_gtask_flags[cur_tid] = flags
+	////}
+}
+probe module("kvm").function("request_partial_boost") {
+	if (global_log_enabled && debug) {
+		printf ("%d    RPB d%d_v%d-p%d d%d_v%d\n", gettimeofday_us(), pid(), 
+				$src_vcpu ? $src_vcpu->vcpu_id : -1, cpu(), pid(), $vcpu->vcpu_id)
+	}
+}
+probe kernel.function("request_boost").return {
+	if (global_log_enabled && debug) {
+		printf ("%d    RB d%d_v%d rq=%d run=%d ret=%d\n", 
+			gettimeofday_us(), $p->tgid, tid_to_vcpu_id[$p->pid], $p->on_rq, $p->on_cpu, $return)
+	}
+}
+probe kernel.function("yield_from_boost") {
+	if (global_log_enabled && debug) {
+		printf ("%d    YD d%d_v%d-p%d bf=%d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[$p->pid], cpu(), $p->se->boost_flag)
+	}
+}
+probe kernel.trace("sched_boost_pick") {
+	if (global_log_enabled && debug) {
+		printf ("%d    BP d%d_v%d-p%d b=%x l=%x s=%x diff=%d\n", gettimeofday_us(),
+			$task ? $task->tgid : -1, $task ? tid_to_vcpu_id[$task->pid] : -1, cpu(), 
+			$boost & 0xffff, $left & 0xffff, $se & 0xffff,
+			$boost->vruntime - $left->vruntime
+		)
+	}
+}
+//probe kernel.function("resched_task") {
+//	if (log_enabled[$p->tgid] && debug) {
+//		printf ("%d RT d%d_v%d\n", gettimeofday_us(), $p->tgid, tid_to_vcpu_id[$p->pid]) 
+//		print_backtrace()
+//	}
+//}
+//probe kernel.trace("kvm_exit") {
+//        if (log_enabled[pid()]) {
+//                printf( "%d EX%d d%d_v%d-p%d %s\n", 
+//			gettimeofday_us(), $exit_reason, pid(), tid_to_vcpu_id[tid()], cpu(),
+//			kernel_string($vcpu->arch->gt->gtask->task_name))
+//        }
+//}
+//probe kernel.trace("kvm_pio") {
+//        if (log_enabled[pid()]) {
+//                printf( "%d PIO d%d_v%d-p%d rw=%d port=%x s=%d c=%d\n", 
+//			gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], cpu(), $rw, $port, $size, $count
+//		)
+//        }
+//}
+//probe kernel.trace("kvm_mmio") {
+//        if (log_enabled[pid()]) {
+//                printf( "%d MMIO d%d_v%d-p%d type=%d gpa=%x\n", 
+//			gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], cpu(), $type, $gpa
+//		)
+//        }
+//}
+probe kernel.trace("kvm_audio_access") {
+	if ($waker_update) {
+		printf( "%d AC d%d_v%d-p%d port=%x tid=%05x tname=%s lwaker=%05x rwaker=%05x count=%d\n", 
+			gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], cpu(), $vcpu->arch->pio->port, 
+				$vcpu->cur_guest_task ? $vcpu->cur_guest_task->id : 0, 
+				kernel_string($vcpu->arch->gt->gtask->task_name),
+				waker_id($vcpu->local_waker_gtask->counter),
+				waker_id($vcpu->remote_waker_gtask->counter),
+				audio_cnt($vcpu->remote_waker_gtask->counter)
+		)
+	}
+}
+probe kernel.trace("kvm_gtask_stat") {
+	printf("%d BG t=%05x f=%d ip=%d l=%d bg=%d ac=%d avg=%d da=%05x davg=%d\n", 
+			gettimeofday_us(),
+			$gtask->id, 
+			$gtask->flags, 
+			$kvm->interactive_phase, 
+			$cpu_load,
+			$gtask->bg_conf,
+			$gtask->audio_count->counter,
+			$gtask->audio_avg,
+			$kvm->dominant_audio_task ? $kvm->dominant_audio_task->id : 0,
+			$kvm->dominant_audio_task ? $kvm->dominant_audio_task->audio_avg: 0
+	)
+}
+probe kernel.trace("kvm_bg_vcpu") {
+	printf("%d  BN d%d_v%d-p%d t=%05x nice=%d\n", gettimeofday_us(),
+		pid(), $vcpu->vcpu_id, cpu(), $vcpu->cur_guest_task->id, $bg_vcpu_nice)
+}
+probe module("kvm").function("check_on_hlt") {
+	if (global_log_enabled)
+		printf("%d    HLT d%d_v%d-p%d\n", gettimeofday_us(), pid(), $vcpu->vcpu_id, cpu())
+}
+probe module("kvm").function("kvm_vcpu_block") {
+	if (global_log_enabled)
+		printf("%d    BKB d%d_v%d-p%d st=%d aph=%d\n", gettimeofday_us(), pid(), $vcpu->vcpu_id, cpu(),
+					$vcpu->arch->mp_state, $vcpu->arch->apf->halted)
+}
+probe module("kvm").function("kvm_vcpu_block").return {
+	if (global_log_enabled)
+		printf("%d    BKE d%d_v%d-p%d st=%d\n", gettimeofday_us(), pid(), $vcpu->vcpu_id, cpu(),
+					$vcpu->arch->mp_state)
+}
+probe module("kvm").function("kvm_vcpu_kick") {
+	if (global_log_enabled)
+		printf("%d    VK d%d_v%d-p%d act=%d\n", gettimeofday_us(), pid(), $vcpu->vcpu_id, cpu(),
+					&$vcpu->wq->task_list != $vcpu->wq->task_list->next)
+}
+probe kernel.function("futex_wait") {
+	if (global_log_enabled && tid() in tid_to_vcpu_id)
+		printf("%d    FWT d%d_v%d-p%d\n", gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], cpu())
+
+}
+probe kernel.function("wake_futex") {
+	if (global_log_enabled && $q->task->se->is_vcpu)
+		printf("%d    FWK d%d_v%d p%d\n", gettimeofday_us(), $q->task->tgid, tid_to_vcpu_id[$q->task->pid], cpu())
+
+}
+//probe module("kvm").function("kvm_cpu_has_interrupt").return {
+//	if (global_log_enabled && $return)
+//		printf("%d    HI d%d_v%d-p%d r=%d\n", gettimeofday_us(), pid(), $v->vcpu_id, cpu(), $return)
+//}
+probe kernel.trace("kvm_inj_virq") {
+	if (global_log_enabled) 
+		printf("%d    IJI d%d_v%d-p%d irq=%x\n", gettimeofday_us(), pid(), tid_to_vcpu_id[tid()], cpu(), $irq)
+}
+////probe end {
+////	print ("#fg2fg\n")
+////	print ("#pid\tguest_task_id\ttaskname\tcount\tavg\n")
+////	foreach ([pid, guest_task_id, task_name] in fg2fg_wait_time-) {
+////		printf("%d\t%05x\t%s\t%d\t%d\n", 
+////			pid, guest_task_id, task_name, @count(fg2fg_wait_time[pid, guest_task_id, task_name]), @avg(fg2fg_wait_time[pid, guest_task_id, task_name]))
+////		if (@count(fg2fg_wait_time[pid, guest_task_id, task_name]) >= 100 )
+////			print(@hist_log(fg2fg_wait_time[pid, guest_task_id, task_name]))
+////	}
+////	print ("\n")
+////	print ("#bg2fg\n")
+////	print ("#pid\tguest_task_id\ttaskname\tcount\tavg\n")
+////	foreach ([pid, guest_task_id, task_name] in bg2fg_wait_time-) {
+////		printf("%d\t%05x\t%s\t%d\t%d\n", 
+////			pid, guest_task_id, task_name, @count(bg2fg_wait_time[pid, guest_task_id, task_name]), @avg(bg2fg_wait_time[pid, guest_task_id, task_name]))
+////		if (@count(bg2fg_wait_time[pid, guest_task_id, task_name]) >= 100 )
+////			print(@hist_log(bg2fg_wait_time[pid, guest_task_id, task_name]))
+////	}
+////	print ("\n")
+////	print ("#bg2fg_ipi_from_fg\n")
+////	print ("#pid\tguest_task_id\ttaskname\tcount\tpct\n")
+////	foreach ([pid, guest_task_id, task_name] in bg2fg_ipi_from_fg-) {
+////		printf("%d\t%05x\t%s\t%d\t%d\n", 
+////			pid, guest_task_id, task_name, @count(bg2fg_ipi_from_fg[pid, guest_task_id, task_name]), 
+////			@count(bg2fg_ipi_from_fg[pid, guest_task_id, task_name]) * 100 / @count(bg2fg_wait_time[pid, guest_task_id, task_name])
+////		)
+////	}
+////	/*
+////	print ("\n")
+////	print ("#fg2fg_detail\n")
+////	print ("#count\tguest_task_id\ttask_name\tpara_id\tas_root\n")
+////	foreach ([guest_task_id, task_name, para_id, as_root] in fg2fg-) {
+////		printf("%d\t%05x\t%s\t%d\t%05x\n", @count(fg2fg[guest_task_id, task_name, para_id, as_root]),
+////			guest_task_id, task_name, para_id, as_root)
+////	}
+////	print ("\n")
+////	print ("#bg2fg_detail\n")
+////	print ("#count\tguest_task_id\ttask_name\tpara_id\tas_root\n")
+////	foreach ([guest_task_id, task_name, para_id, as_root] in bg2fg-) {
+////		printf("%d\t%05x\t%s\t%d\t%05x\n", @count(bg2fg[guest_task_id, task_name, para_id, as_root]),
+////			guest_task_id, task_name, para_id, as_root)
+////	}
+////	*/
+////}

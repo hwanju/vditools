@@ -1,0 +1,53 @@
+#!/usr/bin/stap -v
+
+/* sched_switch */
+probe __scheduler.ctxswitch.tp {
+	printf ("%d D %s %d %d %d\n", 
+		gettimeofday_us(),  
+		next_task_name,
+		next_pid,
+		next_tid,
+		cpu()
+	)
+}
+probe kernel.function("native_smp_send_reschedule") {
+	printf("%d\tR %s %d %d %d %d\n",
+		gettimeofday_us(),
+		execname(),
+		pid(),
+		tid(),
+		cpu(),
+		$cpu
+	)
+}
+probe kernel.trace("sched_wakeup") {
+	printf("%d\tW %s %d %d %d %s %d %d %d\n",
+		gettimeofday_us(),
+		execname(),
+		pid(),
+		tid(),
+		cpu(),
+		kernel_string($p->comm),
+		$p->tgid,
+		$p->pid,
+		@cast($p, "thread_info")->cpu
+	)
+}
+probe kernel.trace("workqueue_queue_work") {
+	printf("%d\tQ %s %d %d %d %d %p\n",
+		gettimeofday_us(),
+		execname(),
+		pid(),
+		tid(),
+		$req_cpu,
+		@cast($cwq, "cpu_workqueue_struct")->gcwq->cpu,
+		$work->func
+	)
+}
+probe kernel.trace("irq_handler_entry") {
+	printf("%d\tI %d %d\n",
+		gettimeofday_us(),
+		$irq,
+		cpu()
+	)
+}

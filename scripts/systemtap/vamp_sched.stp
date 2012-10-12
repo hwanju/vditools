@@ -1,0 +1,33 @@
+#!/usr/bin/stap -v
+
+global nr_gtask_switch
+global desched_state
+
+probe kernel.trace("kvm_vcpu_switch") {
+	if ($op) {	/* arrive */
+		nr_gtask_switch[tid()] = 0
+	}
+	else {		/* depart */
+		desched_state[tid()] = $vcpu->state
+	}
+	/*printf("%d %s %d %d %d\n", gettimeofday_us(), $op ? "VA" : "VD", pid(), $vcpu->vcpu_id, $vcpu->state) */
+}
+
+probe kernel.trace("kvm_gthread_switch") {
+	if ($op) {
+		nr_gtask_switch[tid()]++
+	}
+	if (!$op) {	/* depart */
+		guest_task_id = $vcpu->cur_guest_task ? $vcpu->cur_guest_task->id : 0
+		task_name = kernel_string($vcpu->arch->gt->gtask->task_name)
+
+		/*
+		printf("%d GD %d %d %05x %s %d %d %d\n", 
+			gettimeofday_us(), pid(), $vcpu->vcpu_id, guest_task_id, task_name, $exec_time,
+			desched_state[tid()], nr_gtask_switch[tid()])
+		*/
+		printf("%d %05x %s %d %d %d\n", 
+			$vcpu->vcpu_id, guest_task_id, task_name, $exec_time,
+			desched_state[tid()], nr_gtask_switch[tid()])
+	}
+}

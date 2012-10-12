@@ -1,0 +1,110 @@
+#!/usr/bin/stap -v
+
+global log_enabled
+global id
+global vcpu_state
+global ipi_pending_time
+global ipi_sender_flags
+global fg2fg_lat
+global fg2bg_lat
+global bg2fg_lat
+global bg2bg_lat
+global cur_task_name
+global bg2fg_task
+
+probe kernel.trace("kvm_ui") {
+	load_input = $event_type == 3 || ($event_type == 0 && $event_info == 28)
+        if (load_input)
+                id++
+        //printf("%d  UI d%d et=%d ei=%d id=%d%s\n", gettimeofday_us(), $kvm->vm_id, $event_type, $event_info, id, load_input ? "+" : "")
+}
+probe kernel.trace("kvm_load_check") {
+        log_enabled[$vm_id] = $op;
+        //printf("%d   LC %s %d %d %d\n", gettimeofday_us(), $op ? "ent" : "ext", $vm_id, $start_load_time, $end_load_time)
+}
+probe kernel.trace("kvm_vcpu_switch") {
+        if (log_enabled[pid()]) {
+                //printf( "%d %s d%d_v%d-p%d s=%d et=%d/%d\n", gettimeofday_us(), $op ? "VA" : "VD", 
+		//	pid(), $vcpu->vcpu_id, cpu(), $vcpu->state, $vcpu->bg_exec_time, $vcpu->exec_time);
+		vcpu_state[tid()] = $op
+        }
+}
+probe kernel.trace("kvm_gthread_switch") {
+        if (log_enabled[pid()]) {
+                //printf( "%d   %s d%d_v%d-p%d t=%05x f=%d n=%s id=%d pgd=%05x\n", 
+		//	gettimeofday_us(), $op ? "GA" : "GD", pid(), $vcpu_id, cpu(), $guest_task_id, $flags,
+		//	$task_name ? kernel_string($task_name) : "", $para_id, $as_root >> 12);
+		if ($op == 1) {		/* arrive */
+			now = gettimeofday_us()
+			pid = pid()
+			tid = tid()
+			cur_task_name[pid, $vcpu_id] = $task_name ? kernel_string($task_name) : ""
+			if (vcpu_state[tid] == 2 && ipi_pending_time[pid, $vcpu_id]) {
+				latency = now - ipi_pending_time[pid, $vcpu_id]
+				type = "Non"
+				if($flags == 0 && ipi_sender_flags[pid, $vcpu_id] == 0) {
+					fg2fg_lat[pid] <<< latency
+					type = "fg2fg"
+				}
+				else if($flags > 0 && ipi_sender_flags[pid, $vcpu_id] > 0) {
+					bg2bg_lat[pid] <<< latency
+					type = "bg2bg"
+				}
+				else if($flags > 0 && ipi_sender_flags[pid, $vcpu_id] == 0) {
+					fg2bg_lat[pid] <<< latency
+					type = "fg2bg"
+				}
+				else if($flags == 0 && ipi_sender_flags[pid, $vcpu_id] > 0) {
+					bg2fg_lat[pid] <<< latency
+					type = "bg2fg"
+					bg2fg_task[$task_name ? kernel_string($task_name) : "", $guest_task_id, $para_id, $as_root >> 12] <<< 1
+				}
+				//printf("%d       IS d%d_v%d-p%d %s lat=%d\n", gettimeofday_us(), pid(), $vcpu_id, cpu(), type, latency)
+			}
+
+			if (vcpu_state[tid] == 1) {	/* vcpu's first arrive */
+				vcpu_state[tid] = 2
+			}
+			else {
+				ipi_pending_time[pid, $vcpu_id] = 0
+			}
+		}
+        }
+}
+probe kernel.trace("kvm_ipi") {
+	if (log_enabled[pid()] && $irq->vector == 0xfd) {	// resched
+		//printf("%d IPI %x d%d_v%d(%s:%d) d%d_v%d(%s)\n", gettimeofday_us(), $irq->vector, pid(), $src_vcpu->vcpu_id, cur_task_name[pid(), $src_vcpu->vcpu_id], 
+		//			@cast($src_vcpu->cur_guest_task, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->flags,
+		//			pid(), $dst_vcpu->vcpu_id, cur_task_name[pid(), $dst_vcpu->vcpu_id]
+		//)
+		ipi_pending_time[pid(), $dst_vcpu->vcpu_id] = gettimeofday_us()
+		ipi_sender_flags[pid(), $dst_vcpu->vcpu_id] = @cast($src_vcpu->cur_guest_task, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->flags
+	}
+}
+probe end {
+	printf("fg2fg:\n")
+	foreach ([pid+] in fg2fg_lat) {
+		printf ("\tpid=%d\tcount=%d\tavg=%d\n", pid, @count(fg2fg_lat[pid]), @avg(fg2fg_lat[pid]))
+		print (@hist_log(fg2fg_lat[pid]))
+	}
+	printf("bg2bg:\n")
+	foreach ([pid+] in bg2bg_lat) {
+		printf ("\tpid=%d\tcount=%d\tavg=%d\n", pid, @count(bg2bg_lat[pid]), @avg(bg2bg_lat[pid]))
+		print (@hist_log(bg2bg_lat[pid]))
+	}
+	printf("fg2bg:\n")
+	foreach ([pid+] in fg2bg_lat) {
+		printf ("\tpid=%d\tcount=%d\tavg=%d\n", pid, @count(fg2bg_lat[pid]), @avg(fg2bg_lat[pid]))
+		print (@hist_log(fg2bg_lat[pid]))
+	}
+	printf("bg2fg:\n")
+	foreach ([pid+] in bg2fg_lat) {
+		printf ("\tpid=%d\tcount=%d\tavg=%d\n", pid, @count(bg2fg_lat[pid]), @avg(bg2fg_lat[pid]))
+		print (@hist_log(bg2fg_lat[pid]))
+	}
+	printf("bg2fg task:\n")
+	foreach ([task_name, guest_task_id, para_id, as_root] in bg2fg_task-) {
+		printf("count=%d name=%s gtask_id=%05x pgd=%05x tgid=%d\n", @count(bg2fg_task[task_name, guest_task_id, para_id, as_root]), 
+							task_name, guest_task_id, as_root, para_id)
+	}
+}

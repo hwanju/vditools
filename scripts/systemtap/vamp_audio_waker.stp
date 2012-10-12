@@ -1,0 +1,44 @@
+#!/usr/bin/stap -v
+
+global task_id_to_name
+global audio_access_count
+global task_occurance
+
+function waker_id(addr) {
+	if (addr == 0)
+		return -1
+	return @cast(addr, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->id
+}
+function audio_cnt(addr) {
+	if (addr == 0)
+		return -1
+	return @cast(addr, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->audio_count->counter
+}
+
+probe kernel.trace("kvm_gthread_switch") {
+	if ($op && $vcpu->cur_guest_task) {
+		name = kernel_string($vcpu->arch->gt->gtask->task_name)
+		task_id_to_name[$vcpu->cur_guest_task->id, name]++
+	}
+}
+probe kernel.trace("kvm_audio_access") {
+	if ($waker_update) {
+		waker_task_id = waker_id($vcpu->remote_waker_gtask->counter)
+		audio_count = audio_cnt($vcpu->remote_waker_gtask->counter)
+		printf( "%d\t%05x\t%d\n", 
+			gettimeofday_us(), 
+			waker_task_id,
+			audio_count
+		)
+		audio_access_count[waker_task_id] = audio_count
+	}
+}
+probe end {
+	printf("#id\tname\tcount\n")
+	foreach ([id, name] in task_id_to_name-) {
+		if (task_occurance[id] && task_occurance[id] > 3)
+			continue
+		task_occurance[id]++
+		printf("%d: %05lx\t%s\t%d\n", task_occurance[id], id, name, audio_access_count[id])
+	}
+}

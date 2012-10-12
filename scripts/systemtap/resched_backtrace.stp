@@ -1,0 +1,17 @@
+#!/usr/bin/stap -v
+
+/* sched_switch */
+probe kernel.function("native_smp_send_reschedule") {
+	print("BT\n")
+	print_backtrace()
+	/*
+	printf("%d\tR %s %d %d %d %d\n",
+		gettimeofday_us(),
+		execname(),
+		pid(),
+		tid(),
+		cpu(),
+		$cpu
+	)
+	*/
+}

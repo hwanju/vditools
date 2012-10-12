@@ -1,0 +1,28 @@
+#!/usr/bin/stap -v
+global id
+global log_enabled
+global prev_wait_sum
+global wait_time
+
+probe kernel.trace("kvm_load_check") {
+        log_enabled[$vm_id] = $op
+}
+probe kernel.trace("kvm_ui") {
+	load_input = $event_type == 3 || ($event_type == 0 && $event_info == 28)
+        if (load_input)
+        	id++
+        printf("%d  UI d%d et=%d ei=%d id=%d%s\n", gettimeofday_us(), $kvm->vm_id, $event_type, $event_info, id, load_input ? "+" : "")
+}
+probe __scheduler.ctxswitch.tp {
+	prev_wait_sum[prev_tid] = $prev->se->statistics->wait_sum
+	if (next_tid in prev_wait_sum)
+		wait_time[next_tid] = ($next->se->statistics->wait_sum - prev_wait_sum[next_tid]) / 1000	/* in us */
+}
+probe kernel.trace("kvm_vcpu_switch") {
+        if ($op && log_enabled[pid()]) {	/* arrive */
+		printf( "%d A d%d_v%d-p%d f=%d l=%d\n", 
+			gettimeofday_us(), pid(), $vcpu->vcpu_id, cpu(), 
+			@cast($vcpu->cur_guest_task, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->flags,
+			wait_time[tid()])
+        }
+}

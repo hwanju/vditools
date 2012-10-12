@@ -1,0 +1,129 @@
+#!/usr/bin/stap -v
+
+global interactive_period
+global id
+global cur_task_flags
+global first_task
+global runtime
+global verbose
+global gtask_name
+
+probe begin {
+	verbose = 1
+}
+
+probe kernel.trace("kvm_load_check") {
+        interactive_period[$vm_id] = $op
+}
+probe kernel.trace("kvm_ui") {
+	load_input = $event_type == 3 || ($event_type == 0 && $event_info == 28)
+        if (load_input) {
+		id++
+		printf("%d UI %d %d\n", 
+			gettimeofday_us(), 
+			$kvm->vm_id, 
+			id
+		)
+	}
+}
+probe kernel.trace("kvm_gtask_stat") {
+	printf("%d BG %05x %d %s %d %d %d\n", 
+			gettimeofday_us(),
+			$gtask->id, 
+			$gtask->flags, 
+			gtask_name[$gtask->id],
+			$kvm->interactive_phase, 
+			$cpu_load,
+			$gtask->audio_count
+	)
+}
+probe kernel.trace("kvm_vcpu_switch") {
+	tid = tid()
+	if ($op) {
+		cur_task_flags[tid] = $vcpu->cur_guest_task->flags
+		first_task[tid] = 1
+	}
+	if (interactive_period[pid()]) {
+		if ($op) {
+			printf("%d WT %d %d %d %d\n", 
+				gettimeofday_us(), 
+				$vcpu->vcpu_id, 
+				$vcpu->cur_guest_task->flags,
+				$task->se->statistics->wait_sum,
+				$task->se->statistics->sum_sleep_runtime
+			)
+		}
+		else {
+			printf("%d RT %d %d %d\n", 
+				gettimeofday_us(), 
+				$vcpu->vcpu_id, 
+				runtime[tid, 0],
+				runtime[tid, 2]
+			)
+			runtime[tid, 0] = 0
+			runtime[tid, 2] = 0
+		}
+	}
+}
+probe __scheduler.ctxswitch.tp {
+	if (interactive_period[prev_pid]) {
+		printf("%d QW %d %d %d %d\n", 
+			gettimeofday_us(), 
+			prev_tid,
+			$prev->se->statistics->wait_sum,
+			$prev->se->statistics->sum_sleep_runtime,
+			$prev->se->statistics->iowait_sum
+		)
+	}
+	/*
+	if (interactive_period[next_pid]) {
+		printf("%d QR %d %d\n", 
+			gettimeofday_us(), 
+			next_tid,
+			$next->sum_exec_runtime
+		)
+	}
+	*/
+}
+probe kernel.trace("kvm_gthread_switch") {
+	if (interactive_period[pid()]) {
+		time_us = gettimeofday_us()
+		vcpu_id = $vcpu->vcpu_id
+		guest_task_id = $vcpu->cur_guest_task ? $vcpu->cur_guest_task->id : 0
+		flags = $vcpu->cur_guest_task ? $vcpu->cur_guest_task->flags : -1
+		task_name = kernel_string($vcpu->arch->gt->gtask->task_name)
+		para_id = $vcpu->arch->gt->gtask->task_id
+
+		if ($op) {	// arrive
+			gtask_name[guest_task_id] = task_name
+			if (first_task[tid()])		// 1st switch should be ignored
+				first_task[tid()] = 0
+			else if (cur_task_flags[tid()] > 0 && flags == 0) {
+				if (para_id) {
+					printf("%d BF %d %05x %s\n",
+						time_us,
+						vcpu_id,
+						guest_task_id,
+						task_name
+					)
+				}
+				cur_task_flags[tid()] = -1	// stop BF (Bg->Fg) counting
+			}
+		}
+		else {
+			if ($exec_time) {
+				runtime[tid(), flags] += $exec_time
+				if (verbose) {
+					printf("%d GR %05lx %s %d %d\n",
+						time_us,
+						guest_task_id,
+						gtask_name[guest_task_id],
+						flags,
+						$exec_time
+					)
+
+				}
+			}
+		}
+	}
+}
