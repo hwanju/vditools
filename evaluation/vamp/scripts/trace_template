@@ -14,8 +14,8 @@ latency_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/latency
 out_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/out
 prolog_workload=${WORKLOAD}_prolog
 
-#HIDE=--hide
-HIDE=
+HIDE=--hide
+#HIDE=
 
 mkdir -p $latency_dir
 mkdir -p $out_dir
