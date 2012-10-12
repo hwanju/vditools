@@ -19,14 +19,14 @@ int init_nr_fast_cpus = 2;	/* -f <val>: initial # of fast cpus */
 int verbose;			/* -v: verbose level */
 enum {
 	MODE_STATIC,
-	MODE_LOAD,
 	MODE_DYNAMIC,
+	MODE_LOAD,
 	MODE_END
 };
 char *mode_desc[] = {
 	"Static: # of fast & slow cpus are fixed in predefined numbers",
-	"Load: # of slow cpus is determined based on previous CPU loads of slow tasks",
 	"Dynamic: start with Static, and adjust # of fast cpus based on CPU loads on fast cpus"
+	"Load: # of slow cpus is determined based on previous CPU loads of slow tasks",
 };
 int mode = MODE_STATIC;
 
@@ -63,8 +63,9 @@ int mode = MODE_STATIC;
 #define INPUT_TYPE_KEYBOARD	0
 #define INPUT_TYPE_MOUSE	1
 #define INPUT_TYPE_AUDIO	2
-/* currently 2~ types are not defined */
+/* currently 3~ types are not defined */
 
+int nr_fast_cpus;
 unsigned long stat_mon_period_us = 1000000;
 #define start_stat_monitor()	do { ualarm(stat_mon_period_us, 0); } while(0)
 
@@ -249,7 +250,7 @@ static int slow_task_exist(void)
 
 static void isolate_slow_tasks(void)
 {
-	int nr_fast_cpus, nr_slow_cpus;
+	int nr_slow_cpus;
 	int nr_slow_tasks;
 	struct slow_task slow_tasks[MAX_SLOW_TASKS];
 
@@ -260,7 +261,7 @@ static void isolate_slow_tasks(void)
 		restore_tasks();
 		return;
 	}
-	if (mode == MODE_STATIC) {
+	if (mode == MODE_STATIC || mode == MODE_DYNAMIC) {
 		nr_fast_cpus = init_nr_fast_cpus;
 		nr_slow_cpus = nr_cpus - nr_fast_cpus;
 	}
@@ -278,11 +279,49 @@ static void isolate_slow_tasks(void)
 	start_stat_monitor();
 }
 
+static int get_fast_cpus_load(void)
+{
+	FILE *fp;
+	char cpu[16];
+	int user, nice, sys, idle, iowait, irq, softirq, steal, guest, guest_nice;
+	int line = 0;
+	unsigned long curr_total, curr_util;
+	static unsigned long prev_total, prev_util;
+	int cpu_util_pct;
+
+	if ((fp = fopen("/proc/stat", "r")) == NULL)
+		return 0;
+
+	curr_total = curr_util = 0;
+	while(fscanf(fp, "%s %d %d %d %d %d %d %d %d %d %d",
+		cpu, &user, &nice, &sys, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice) == 11) {
+		if (line++ == 0) 
+			continue;
+		if (line > nr_fast_cpus)
+			break;
+		/* 0 < line <= nr_fast_cpus -> cpu_0, .. cpu_(nr_fast_cpus-1) */
+		curr_total += user + nice + sys + idle + iowait + irq + softirq + steal + guest + guest_nice;
+		curr_util  += curr_total - (idle + iowait);
+	}
+	fclose(fp);
+
+	cpu_util_pct = (curr_util - prev_util) * 100 / (curr_total - prev_total);
+	prev_total = curr_total;
+	prev_util  = curr_util;
+
+	return cpu_util_pct;
+}
+
 static void stat_monitor(int arg)
 {
 	if (!slow_task_exist()) {
 		restore_tasks();
 		return;
+	}
+	if (mode == MODE_DYNAMIC) {
+		int fast_cpus_load = get_fast_cpus_load();
+		fast_cpus_load /= nr_fast_cpus;
+		debug_printf(VB_MAJOR, "\tfast_cpus_load=%d%% (%d cpus)\n", fast_cpus_load, nr_fast_cpus);
 	}
 	start_stat_monitor();
 }
