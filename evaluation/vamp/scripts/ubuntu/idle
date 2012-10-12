@@ -26,7 +26,26 @@ while true; do
 	if [ -e /tmp/interactive_stop ]; then
 		break
 	fi
-	sleep 10
+	sleep 240
+	SEND_QUERY_SIGNAL
+
+	# get a message from host
+	while [ 1 ]
+	do
+		if [ -e /tmp/query ]
+		then
+			break
+		fi
+		sleep 0.01
+	done
+
+	# (stop or repeat)
+	reply=$(cat /tmp/query)
+	if [ "$reply" = "stop" ]
+	then
+		break
+	fi
+	rm /tmp/query
 done
 
 # vdiguest extention debug result

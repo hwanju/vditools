@@ -14,6 +14,9 @@ latency_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/latency
 out_dir=$CLIENT_HOME/$CLIENT_TRACE_DIR/$TRACE_DIR/out
 prolog_workload=${WORKLOAD}_prolog
 
+#HIDE=--hide
+HIDE=
+
 mkdir -p $latency_dir
 mkdir -p $out_dir
 if [ "$MIXED_TRACE" != "1" ]; then
@@ -28,7 +31,7 @@ sleep 20	# wait for householding after boot
 
 ### WORKLOAD_NAME is replaced by skbench ###
 if [ "$prolog_workload" != "" ]; then
-        spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS --hide > $out_dir/WORKLOAD_NAME.prolog.out
+        spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$prolog_workload.trace -T $THINK_TIME_MS $HIDE > $out_dir/WORKLOAD_NAME.prolog.out
 fi
 
 SEND_READY_SIGNAL
@@ -43,7 +46,7 @@ echo -n > $out_dir/WORKLOAD_NAME.out
 while [ 1 ]
 do
         sleep $(( $THINK_TIME_MS / 1000 ))
-	spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS --hide 2>> $latency_dir/WORKLOAD_NAME.latency >> $out_dir/WORKLOAD_NAME.out
+	spicec -h $host_addr -p $SPICE_PORT -P $trace_dir/$WORKLOAD.trace -T $THINK_TIME_MS $HIDE 2>> $latency_dir/WORKLOAD_NAME.latency >> $out_dir/WORKLOAD_NAME.out
 	# query to host whether the minimum number of iterations are ended
 	SEND_QUERY_SIGNAL
 

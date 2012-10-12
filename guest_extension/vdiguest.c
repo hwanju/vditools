@@ -15,7 +15,6 @@
 #include <sched.h>
 
 /* Parameters */
-int audio_monitor = 0;		/* -a: audio monitor if 1 */
 int init_nr_fast_cpus = 2;	/* -f <val>: initial # of fast cpus */
 int verbose;			/* -v: verbose level */
 enum {
@@ -39,7 +38,7 @@ int mode = MODE_STATIC;
 	do { if (level <= verbose) printf(args); } while (0)
 
 #define SLOW_TASK_PATH		"/proc/kvm_slow_task"
-#define AUDIO_ACTIVITY_PATH	"/tmp/vdiguest-audio-activity"
+#define AUDIO_FIFO_PATH		"/tmp/vdiguest-audio"
 
 #define CPUSET_PATH		"/dev/cpuset/vdiguest"
 #define SLOW_GROUP_NAME		"slow"
@@ -63,6 +62,7 @@ int mode = MODE_STATIC;
 #define INPUT_NAME_LEN		256
 #define INPUT_TYPE_KEYBOARD	0
 #define INPUT_TYPE_MOUSE	1
+#define INPUT_TYPE_AUDIO	2
 /* currently 2~ types are not defined */
 
 unsigned long stat_mon_period_us = 1000000;
@@ -247,22 +247,6 @@ static int slow_task_exist(void)
 	return ret;
 }
 
-static int audio_activity_exist(void)
-{
-	FILE *fp;
-	int audio_activity = 0;
-	if (!audio_monitor)
-		return 0;
-	if ((fp = fopen(AUDIO_ACTIVITY_PATH, "r")) == NULL)
-		return 0;
-	fscanf(fp, "%d", &audio_activity);
-	fclose(fp);
-
-	debug_printf(VB_MINOR, "\taudio activity exists -> %s\n", audio_activity ? "true" : "false");
-
-	return audio_activity;
-}
-
 static void isolate_slow_tasks(void)
 {
 	int nr_fast_cpus, nr_slow_cpus;
@@ -296,15 +280,10 @@ static void isolate_slow_tasks(void)
 
 static void stat_monitor(int arg)
 {
-	int audio_activity = audio_activity_exist();
-
 	if (!slow_task_exist()) {
 		restore_tasks();
-		if (!audio_activity)
-			return;
+		return;
 	}
-	else if (audio_activity)
-		isolate_slow_tasks();
 	start_stat_monitor();
 }
 
@@ -319,15 +298,15 @@ static void monitor_input(int epfd)
 	static unsigned int seq_num = 1;
 
 	while(1) {
-		nr_events = epoll_wait(epfd, events, MAX_INPUT_EVENTS, 100);
+		nr_events = epoll_wait(epfd, events, MAX_INPUT_EVENTS, -1);
 		if (nr_events < 0 || errno == EINTR)
 			continue;
 		for (i = 0; i < nr_events; i++) {
 			idesc = (struct input_descriptor *)events[i].data.ptr;
-			if (read(idesc->fd, input_evt, size * 64) < size)
-				continue;
 
 			if (idesc->type == INPUT_TYPE_KEYBOARD) {
+				if (read(idesc->fd, input_evt, size * 64) < size)
+					continue;
 				if (input_evt[0].value != ' ' && 
 				    input_evt[1].value == 1 && 
 				    input_evt[1].type == 1 &&
@@ -339,6 +318,8 @@ static void monitor_input(int epfd)
 				}
 			}
 			else if (idesc->type == INPUT_TYPE_MOUSE) {
+				if (read(idesc->fd, input_evt, size * 64) < size)
+					continue;
 				if (input_evt[1].value == 0 &&	/* mouse click released */
 				    input_evt[1].type == 1) {
 					debug_printf(VB_MAJOR, "\nI%d: mouse ([0].value=%x [0].type=%x [1].value=%x [1].type=%x)\n",
@@ -347,6 +328,12 @@ static void monitor_input(int epfd)
 						input_evt[1].value, input_evt[1].type);
 					isolate_slow_tasks();
 				}
+			}
+			else {
+				char buf[8];
+				read(idesc->fd, buf, 8);
+				debug_printf(VB_MAJOR, "\nA: audio output\n");
+				isolate_slow_tasks();
 			}
 		}
 	}
@@ -388,7 +375,7 @@ static int init_input_monitor(int nr_devs, char **input_devs)
 	int epfd;
 	struct epoll_event event;
 
-	if ((epfd = epoll_create(nr_devs)) < 0) {
+	if ((epfd = epoll_create(nr_devs + 1)) < 0) {	/* input device + audio fifo */
 		perror("epoll_create");
 		return -1;
 	}
@@ -415,6 +402,30 @@ static int init_input_monitor(int nr_devs, char **input_devs)
 				input_desc[i].fd,
 				input_desc[i].type);
 	}
+	unlink(AUDIO_FIFO_PATH);
+	umask(0000);
+	if (mkfifo(AUDIO_FIFO_PATH, 0666) == -1)
+		exit_with_msg("fail to create fifo file for audio\n");
+	if ((fd = open(AUDIO_FIFO_PATH, O_RDWR)) == -1)
+		exit_with_msg("file open error: %s\n", AUDIO_FIFO_PATH);
+	input_desc[i].fd = fd;
+	input_desc[i].type = INPUT_TYPE_AUDIO;
+	input_desc[i].path = AUDIO_FIFO_PATH;
+	ioctl (fd, EVIOCGNAME(INPUT_NAME_LEN), input_desc[i].name);
+
+	/* add to epoll interface */
+	event.events = EPOLLIN;
+	event.data.ptr = &input_desc[i];
+	if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &event) < 0) {
+		perror("epoll_ctl");
+		return -1;
+	}
+	printf ("path=%s name=%s fd=%d type=%d\n", 
+			input_desc[i].path, 
+			input_desc[i].name, 
+			input_desc[i].fd,
+			input_desc[i].type);
+
 	return epfd;
 }
 
@@ -438,11 +449,8 @@ int main (int argc, char *argv[])
 	int epfd = -1;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "af:m:p:v:")) != -1) {
+	while ((c = getopt (argc, argv, "f:m:p:v:")) != -1) {
 		switch (c) {
-			case 'a':
-				audio_monitor = 1;
-				break;
 			case 'f':
 				init_nr_fast_cpus = atoi(optarg);
 				break;
@@ -462,7 +470,7 @@ int main (int argc, char *argv[])
 	argc -= (optind - 1);
 
 	if (argc < 2 || mode >= MODE_END || mode < 0) {
-		exit_with_msg("Usage: %s [-a: audio monitor if set, -v <verbose level>, -f <# of fast cpus>, -m <mode>] <keyboard input device file> <mouse input device file> <others> ...\n", argv[0]);
+		exit_with_msg("Usage: %s [-v <verbose level>, -f <# of fast cpus>, -m <mode>] <keyboard input device file> <mouse input device file> <others> ...\n", argv[0]);
 	}
 
 	if ((getuid()) != 0)

@@ -3,7 +3,7 @@
 # default path
 $eval_conf_fn = "../config/eval_config";
 $guest_conf_fn = "../virsh/guest_config";
-$templ = "launch_template";
+$templ = "trace_template";
 
 open FD, "../workloads/workloads.inc";
 while(<FD>) {
