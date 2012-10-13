@@ -1,0 +1,33 @@
+#!/usr/bin/perl -w
+
+die "Usage: $0 <latency file> [multiple(default=1)]\n" unless @ARGV;
+$fn = shift(@ARGV);
+$mult = @ARGV ? shift(@ARGV) : 1;
+$nr_samples = `wc -l $fn | awk '{print \$1}'`;
+$nr_samples -= 20 * $mult;
+open FD, $fn or die "file open error: $fn\n";
+
+$i = 0;
+while(<FD>) {
+    next unless (/^\d+$/);
+    if ($i++ % $mult == 0) {
+        #next if $i == 1;
+        $sum += $_;
+        $sqsum += ($_*$_);
+	push(@samples, int($_));
+        $n++;
+
+        print "$n\t$_";
+    }
+    last if $i >= $nr_samples;
+}     
+$step = 100 / $n;
+foreach $v (sort {$a <=> $b} @samples) {
+	$pct += $step;
+	$val_95p = $v if !defined($val_95p) && $pct >= 90;
+	$val_99p = $v if !defined($val_99p) && $pct >= 99;
+	$max = $v;
+}
+$avg = $sum / $n;
+$sd  = sqrt(($sqsum / $n) - ($avg*$avg));
+printf "avg=%.2lf sd=%.2lf 95p=%.2lf 99p=%.2lf max=%.2lf count=%d\n", $avg, $sd, $val_95p, $val_99p, $max, $n;

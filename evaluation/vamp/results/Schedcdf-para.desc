@@ -1,0 +1,6 @@
+wait_sum	wait_max	remote_wake_sum	remote_wake_max	wait_sum+remote_wake_sum	wait_max+remote_wake_max	sum_exec_runtime	utime	stime	utime+stime	sum_exec_runtime+wait_sum+remote_wake_sum
+500		100		100		60		300				100				2000			200	100	200	1500
+1impress_launch:freqmine+1freqmine@baseline-5:8:0-perf-para:1.result	vAMP(5)_w/_ext(1)		1	1
+1impress_launch:freqmine+1freqmine@baseline-15:8:0-perf-para:1.result	vAMP(15)_w/_ext(1)	2	2
+1impress_launch:freqmine+1freqmine@baseline-5:8:0-perf-para:2.result	vAMP(5)_w/_ext(2)		3	3
+1impress_launch:freqmine+1freqmine@baseline-15:8:0-perf-para:2.result	vAMP(15)_w/_ext(2)	4	4

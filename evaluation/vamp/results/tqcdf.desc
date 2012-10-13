@@ -1,0 +1,6 @@
+TAVSLimitation	5000	100
+_1ubuntu/1impress_launch@baseline.debug	soffice.bin	Launch(LibreOffice_Impress)	1	1
+#_1ubuntu/1firefox_launch@baseline.debug	firefox		Launch(Firefox)			2	2
+_1ubuntu/1video@baseline.debug		vlc		Media_Player(VLC)		2	2
+_1parsec/1raytrace@baseline.debug	rtview		raytrace(singlethreaded)	4	3
+_1parsec-8vcpu/1raytrace@baseline.debug	rtview		raytrace(multithreaded)		5	7
