@@ -27,7 +27,17 @@ if [ "$MIXED_TRACE" == "1" ]; then
 	fi
 
 	# event-based profiling
-	eventprof -t soffice -p 7 /dev/input/event1 /dev/input/event2 > /tmp/eventprof.log &
+	fg_workload=`echo $WORKLOAD_FORMAT | cut -d: -f1`
+	fg_workload=${fg_workload:1}	# trim 1
+	echo "Mixed with $fg_workload as a foreground workload" > /tmp/eventprof.log
+	if [ "$(echo $fg_workload | grep launch)" != "" ]; then		# XXX_launch
+		fg_workload=`echo $fg_workload | cut -d_ -f1`		# XXX
+		if [ "$(echo $fg_workload | grep impress)" != "" ]; then	# impress -> soffice
+			fg_workload=soffice
+		fi
+		echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
+		eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
+	fi
 fi
 
 mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
