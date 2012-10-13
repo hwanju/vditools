@@ -1,7 +1,7 @@
-#N:8:0		0:8:0		5:8:0		5:8:1		5:8:2		5:8:0-para:1
-#Baseline	Tracking-only	vAMP		vAMP(w/_PB)	vAMP(w/_PB-A)	vAMP(w/_Ext)
-N:8:0		5:8:0		5:8:1		5:8:0-para:1
-Baseline	vAMP		vAMP(w/_PB)	vAMP(w/_Ext)
+N:8:0		0:8:0		5:8:0		5:8:1		5:8:2		5:8:0-para:1
+Baseline	Tracking-only	vAMP		vAMP(w/_PB)	vAMP(w/_PB-A)	vAMP(w/_Ext)
+#N:8:0		5:8:0		5:8:0-para:1
+#Baseline	vAMP		vAMP(w/_Ext)
 1impress_launch\:freqmine+1freqmine@baseline	Impress
 1firefox_launch\:freqmine+1freqmine@baseline	Firefox
 1chrome_launch\:freqmine+1freqmine@baseline	Chrome
