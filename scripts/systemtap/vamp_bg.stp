@@ -8,7 +8,8 @@ global id
 //	return @cast(addr, "guest_task_struct", "kernel<linux/kvm_task_aware.h>")->audio_count->counter
 //}
 probe kernel.trace("kvm_load_check") {
-	id++
+	if ($op)
+		id++
 	printf ("%d LC id=%d op=%d d%d\n", gettimeofday_us(), id, $op, $vm_id)
 }
 probe kernel.trace("kvm_gtask_stat") {

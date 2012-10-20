@@ -20,20 +20,25 @@ int verbose;			/* -v: verbose level */
 enum {
 	MODE_STATIC,
 	MODE_DYNAMIC,
+	MODE_DYNAMIC_LOAD,
 	MODE_LOAD,
 	MODE_END
 };
 char *mode_desc[] = {
 	"Static: # of fast & slow cpus are fixed in predefined numbers",
-	"Dynamic: start with Static, and adjust # of fast cpus based on CPU loads on fast cpus"
+	"Dynamic: start with Static, and adjust # of fast cpus based on the existence of slow tasks",
+	"Dynamic-load: start with Static, and adjust # of fast cpus based on CPU loads on fast cpus",
 	"Load: # of slow cpus is determined based on previous CPU loads of slow tasks",
 };
 int mode = MODE_STATIC;
 
 #define exit_with_msg(args...) do { fprintf(stderr, args); exit(-1); } while (0)
 
-#define VB_MAJOR	1
-#define VB_MINOR	2
+enum {
+	VB_MAJOR = 1,
+	VB_MINOR,
+	VB_DEBUG
+};
 #define debug_printf(level, args...)  \
 	do { if (level <= verbose) printf(args); } while (0)
 
@@ -67,8 +72,6 @@ int mode = MODE_STATIC;
 
 int nr_fast_cpus;
 unsigned long stat_mon_period_us = 1000000;
-#define start_stat_monitor()	do { ualarm(stat_mon_period_us, 0); } while(0)
-
 int nr_cpus;	/* # of available CPUs */
 int my_pid;
 
@@ -208,6 +211,57 @@ static void restore_tasks(void)
 	fclose(fp);
 }
 
+static int get_fast_cpus_load(void)
+{
+	FILE *fp;
+	char cpu[16];
+	int cpuid = -1;
+	unsigned long user, nice, sys, idle, iowait, irq, softirq, steal, guest, guest_nice;
+	unsigned long curr_total, curr_util;
+	static unsigned long prev_total, prev_util;
+	int cpu_util_pct = 0;
+
+	if ((fp = fopen("/proc/stat", "r")) == NULL)
+		return 0;
+
+	curr_total = curr_util = 0;
+	while(fscanf(fp, "%s %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",
+		cpu, &user, &nice, &sys, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice) == 11) {
+		if (cpuid++ == -1) 
+			continue;
+		if (cpuid > nr_fast_cpus)
+			break;
+		/* 0 < cpuid <= nr_fast_cpus -> cpu_0, .. cpu_(nr_fast_cpus-1) */
+		debug_printf(VB_DEBUG, "\t%s user=%lu nice=%lu sys=%lu idle=%lu iowait=%lu irq=%lu softirq=%lu steal=%lu\n",
+				cpu, user, nice, sys, idle, iowait, irq, softirq, steal);
+		curr_total += user + nice + sys + idle + iowait + irq + softirq + steal + guest + guest_nice;
+		curr_util  += user + nice + sys + + irq + softirq + steal + guest + guest_nice;
+	}
+	fclose(fp);
+
+	if (curr_total - prev_total)
+		cpu_util_pct = (curr_util - prev_util) * 100 / (curr_total - prev_total);
+	debug_printf(VB_DEBUG, "\tutil=%lu (=%lu-%lu), curr_total=%lu (=%lu-%lu)\n",
+			curr_util - prev_util, curr_util, prev_util, 
+			curr_total - prev_total, curr_total, prev_total);
+
+	prev_total = curr_total;
+	prev_util  = curr_util;
+
+	return cpu_util_pct;
+}
+
+static inline void start_stat_monitor(void)
+{
+	if (mode == MODE_STATIC)
+		return;
+	if (stat_mon_period_us < 1000000)
+		ualarm(stat_mon_period_us, 0);
+	else
+		alarm(stat_mon_period_us / 1000000);
+}
+
+
 static int get_slow_tasks(struct slow_task *slow_tasks, int *nr_slow_cpus)
 {
 	FILE *fp;
@@ -238,6 +292,7 @@ static int slow_task_exist(void)
 {
 	FILE *fp;
 	int ret, dummy;
+
 	if ((fp = fopen(SLOW_TASK_PATH, "r")) == NULL)
 		return 0;
 	ret = fscanf(fp, "%d", &dummy) == 1;
@@ -248,7 +303,7 @@ static int slow_task_exist(void)
 	return ret;
 }
 
-static void isolate_slow_tasks(void)
+static void isolate_slow_tasks(int output)
 {
 	int nr_slow_cpus;
 	int nr_slow_tasks;
@@ -261,8 +316,22 @@ static void isolate_slow_tasks(void)
 		restore_tasks();
 		return;
 	}
-	if (mode == MODE_STATIC || mode == MODE_DYNAMIC) {
-		nr_fast_cpus = init_nr_fast_cpus;
+	if (mode < MODE_LOAD) {
+		/* optimization: 
+		 * for audio output, previous nr_fast_cpus is retained
+		 * because in most cases multimedia workloads require
+		 * more than one cpu. Since nr_fast_cpus is adjusted
+		 * after stat monitor period, degradation could happen
+		 * for the period */
+		if (!output)
+			nr_fast_cpus = init_nr_fast_cpus;
+		else if (init_nr_fast_cpus < 2) {
+			/* in case of audio output, minimum # of fast cpus
+			 * should be more than one, so that the hypervisor
+			 * can track remote wake-up between sound server and
+			 * client */
+			init_nr_fast_cpus = 2;
+		}
 		nr_slow_cpus = nr_cpus - nr_fast_cpus;
 	}
 	else if (mode == MODE_LOAD) {
@@ -276,40 +345,10 @@ static void isolate_slow_tasks(void)
 
 	move_slow_tasks(nr_slow_tasks, slow_tasks, nr_slow_cpus);
 	mod_fast_cpus(nr_fast_cpus);
+
+	if (mode == MODE_DYNAMIC_LOAD)
+		get_fast_cpus_load();
 	start_stat_monitor();
-}
-
-static int get_fast_cpus_load(void)
-{
-	FILE *fp;
-	char cpu[16];
-	int user, nice, sys, idle, iowait, irq, softirq, steal, guest, guest_nice;
-	int line = 0;
-	unsigned long curr_total, curr_util;
-	static unsigned long prev_total, prev_util;
-	int cpu_util_pct;
-
-	if ((fp = fopen("/proc/stat", "r")) == NULL)
-		return 0;
-
-	curr_total = curr_util = 0;
-	while(fscanf(fp, "%s %d %d %d %d %d %d %d %d %d %d",
-		cpu, &user, &nice, &sys, &idle, &iowait, &irq, &softirq, &steal, &guest, &guest_nice) == 11) {
-		if (line++ == 0) 
-			continue;
-		if (line > nr_fast_cpus)
-			break;
-		/* 0 < line <= nr_fast_cpus -> cpu_0, .. cpu_(nr_fast_cpus-1) */
-		curr_total += user + nice + sys + idle + iowait + irq + softirq + steal + guest + guest_nice;
-		curr_util  += curr_total - (idle + iowait);
-	}
-	fclose(fp);
-
-	cpu_util_pct = (curr_util - prev_util) * 100 / (curr_total - prev_total);
-	prev_total = curr_total;
-	prev_util  = curr_util;
-
-	return cpu_util_pct;
 }
 
 static void stat_monitor(int arg)
@@ -318,10 +357,14 @@ static void stat_monitor(int arg)
 		restore_tasks();
 		return;
 	}
-	if (mode == MODE_DYNAMIC) {
+	if (mode == MODE_DYNAMIC_LOAD) {
 		int fast_cpus_load = get_fast_cpus_load();
-		fast_cpus_load /= nr_fast_cpus;
 		debug_printf(VB_MAJOR, "\tfast_cpus_load=%d%% (%d cpus)\n", fast_cpus_load, nr_fast_cpus);
+		if (fast_cpus_load >= 100 && nr_fast_cpus < nr_cpus / 2) {
+			nr_fast_cpus++;
+			mod_fast_cpus(nr_fast_cpus);
+			get_fast_cpus_load();
+		}
 	}
 	start_stat_monitor();
 }
@@ -338,14 +381,21 @@ static void monitor_input(int epfd)
 
 	while(1) {
 		nr_events = epoll_wait(epfd, events, MAX_INPUT_EVENTS, -1);
-		if (nr_events < 0 || errno == EINTR)
+		if (nr_events < 0 && errno == EINTR) {
+			debug_printf(VB_DEBUG, "[DEBUG] monitor_input: epoll_wait returns <0 (%d) nr_events and intrrupted errno (%d)\n",
+					nr_events, errno);
 			continue;
+		}
 		for (i = 0; i < nr_events; i++) {
 			idesc = (struct input_descriptor *)events[i].data.ptr;
 
 			if (idesc->type == INPUT_TYPE_KEYBOARD) {
-				if (read(idesc->fd, input_evt, size * 64) < size)
+				int rsize;
+				if ((rsize = read(idesc->fd, input_evt, size * 64)) < size) {
+					debug_printf(VB_DEBUG, "[DEBUG] monitor_input (i=%d, nr_events=%d, errno=%d): read returns %d (< %d)\n",
+							i, nr_events, errno, rsize, size);
 					continue;
+				}
 				if (input_evt[0].value != ' ' && 
 				    input_evt[1].value == 1 && 
 				    input_evt[1].type == 1 &&
@@ -353,26 +403,30 @@ static void monitor_input(int epfd)
 					debug_printf (VB_MAJOR, "\nI%d: keyboard (code=%d)\n", 
 							seq_num++,
 							(input_evt[1].code));
-					isolate_slow_tasks();
+					isolate_slow_tasks(0);
 				}
 			}
 			else if (idesc->type == INPUT_TYPE_MOUSE) {
-				if (read(idesc->fd, input_evt, size * 64) < size)
+				int rsize;
+				if ((rsize = read(idesc->fd, input_evt, size * 64)) < size) {
+					debug_printf(VB_DEBUG, "[DEBUG] monitor_input (i=%d, nr_events=%d, errno=%d): read returns %d (< %d)\n",
+							i, nr_events, errno, rsize, size);
 					continue;
+				}
 				if (input_evt[1].value == 0 &&	/* mouse click released */
 				    input_evt[1].type == 1) {
 					debug_printf(VB_MAJOR, "\nI%d: mouse ([0].value=%x [0].type=%x [1].value=%x [1].type=%x)\n",
 						seq_num++,
 						input_evt[0].value, input_evt[0].type,
 						input_evt[1].value, input_evt[1].type);
-					isolate_slow_tasks();
+					isolate_slow_tasks(0);
 				}
 			}
 			else {
 				char buf[8];
 				read(idesc->fd, buf, 8);
 				debug_printf(VB_MAJOR, "\nA: audio output\n");
-				isolate_slow_tasks();
+				isolate_slow_tasks(1);
 			}
 		}
 	}
@@ -429,7 +483,7 @@ static int init_input_monitor(int nr_devs, char **input_devs)
 		ioctl (fd, EVIOCGNAME(INPUT_NAME_LEN), input_desc[i].name);
 
 		/* add to epoll interface */
-		event.events = EPOLLIN;
+		event.events = EPOLLIN | EPOLLET;
 		event.data.ptr = &input_desc[i];
 		if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &event) < 0) {
 			perror("epoll_ctl");

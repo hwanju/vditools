@@ -17,27 +17,27 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		param2=$(echo $PRIVATE_ARG2 | cut -d: -f3)
 		nr_fast_cpus=2
 		if [ "$param1" != "" ]; then
-			nr_fast_cpus=$param1
+			nr_fast_cpus=$param1	# initial # of fast cpus
 		fi
 		opt=""
-		if [ "$param2" == "d" ]; then
-			opt="-m 2"	# dynamic
+		if [ "$param2" != "" ]; then
+			opt="-m $param2"	# mode
 		fi
-		vdiguest -f $nr_fast_cpus -v 2 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+		vdiguest -f $nr_fast_cpus -v 3 -p 1000 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
 
 	# event-based profiling
-	fg_workload=`echo $WORKLOAD_FORMAT | cut -d: -f1`
-	fg_workload=${fg_workload:1}	# trim 1
-	echo "Mixed with $fg_workload as a foreground workload" > /tmp/eventprof.log
-	if [ "$(echo $fg_workload | grep launch)" != "" ]; then		# XXX_launch
-		fg_workload=`echo $fg_workload | cut -d_ -f1`		# XXX
-		if [ "$(echo $fg_workload | grep impress)" != "" ]; then	# impress -> soffice
-			fg_workload=soffice
-		fi
-		echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
-		eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
-	fi
+	#fg_workload=`echo $WORKLOAD_FORMAT | cut -d: -f1`
+	#fg_workload=${fg_workload:1}	# trim 1
+	#echo "Mixed with $fg_workload as a foreground workload" > /tmp/eventprof.log
+	#if [ "$(echo $fg_workload | grep launch)" != "" ]; then		# XXX_launch
+	#	fg_workload=`echo $fg_workload | cut -d_ -f1`		# XXX
+	#	if [ "$(echo $fg_workload | grep impress)" != "" ]; then	# impress -> soffice
+	#		fg_workload=soffice
+	#	fi
+	#	echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
+	#	eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
+	#fi
 fi
 
 mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
