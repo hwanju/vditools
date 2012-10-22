@@ -1,7 +1,15 @@
 PACKAGE=
 TYPE=
 
-USER_HOME=/home/ubuntu1104
+mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
+cd ~/parsec-2.1
+mkdir -p pkgs/$TYPE/$PACKAGE/run/
+tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
+####bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v"	# warmup run
+
+SEND_READY_SIGNAL
+WAIT_START_SIGNAL
+
 prefix_cmd=
 NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
 if [ "$MIXED_TRACE" == "1" ]; then
@@ -12,6 +20,20 @@ if [ "$MIXED_TRACE" == "1" ]; then
 	if [ "$(echo $PRIVATE_ARG2 | grep pin)" != "" ]; then
 		prefix_cmd="taskset -c 4-7"
 	fi
+
+	# event-based profiling
+	fg_workload=`echo $WORKLOAD_FORMAT | cut -d: -f1`
+	fg_workload=${fg_workload:1}	# trim 1
+	echo "Mixed with $fg_workload as a foreground workload" > /tmp/eventprof.log
+	if [ "$(echo $fg_workload | grep launch)" != "" ]; then		# XXX_launch
+		fg_workload=`echo $fg_workload | cut -d_ -f1`		# XXX
+		if [ "$(echo $fg_workload | grep impress)" != "" ]; then	# impress -> soffice
+			fg_workload=soffice
+		fi
+		echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
+		eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
+	fi
+
 	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
 		param1=$(echo $PRIVATE_ARG2 | cut -d: -f2)
 		param2=$(echo $PRIVATE_ARG2 | cut -d: -f3)
@@ -23,35 +45,9 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		if [ "$param2" != "" ]; then
 			opt="-m $param2"	# mode
 		fi
-		vdiguest -f $nr_fast_cpus -v 3 -p 1000 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+		vdiguest -f $nr_fast_cpus -v 1 -p 1000 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
-
-	# event-based profiling
-	#fg_workload=`echo $WORKLOAD_FORMAT | cut -d: -f1`
-	#fg_workload=${fg_workload:1}	# trim 1
-	#echo "Mixed with $fg_workload as a foreground workload" > /tmp/eventprof.log
-	#if [ "$(echo $fg_workload | grep launch)" != "" ]; then		# XXX_launch
-	#	fg_workload=`echo $fg_workload | cut -d_ -f1`		# XXX
-	#	if [ "$(echo $fg_workload | grep impress)" != "" ]; then	# impress -> soffice
-	#		fg_workload=soffice
-	#	fi
-	#	echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
-	#	eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
-	#fi
 fi
-
-mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
-cd ~/parsec-2.1
-mkdir -p pkgs/$TYPE/$PACKAGE/run/
-tar xf pkgs/$TYPE/$PACKAGE/inputs/input_native.tar -C pkgs/$TYPE/$PACKAGE/run/
-####bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v"	# warmup run
-
-####if [ -e $USER_HOME/test.mp4 ]; then	# FIXME
-####	cat $USER_HOME/test.mp4 > /dev/null
-####fi
-
-SEND_READY_SIGNAL
-WAIT_START_SIGNAL
 
 i=0
 echo > /tmp/parsec.result
@@ -165,6 +161,8 @@ fi
 if [ -e /tmp/video.log ]; then
 	cat /tmp/video.log >> /tmp/parsec.result
 fi
+
+USER_HOME=/home/ubuntu1104
 for i in `seq 5`; do
 	if [ -e $USER_HOME/vlc.frames.$i ]; then
 		echo "FRAMETIME$i" >> /tmp/parsec.result

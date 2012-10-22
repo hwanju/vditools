@@ -2,7 +2,7 @@
 
 die "Usage: $0 [-b: browse details | -m <1:mixed in vm or 2:mixed out of vm>] <plot desc file> <stat name (e.g., avg, max>\n" unless @ARGV >= 2;
 $mixed = 0;
-@browse_names = ("");
+@browser_names = ("");
 @browse_sites = ("");
 if ($ARGV[0] eq "-m") {
 	shift(@ARGV);
@@ -70,6 +70,7 @@ while(<FD>) {
 				$browser_name = $xtic;
 				push(@browser_names, $browser_name);
 				$datfn = "$name-$browser_name.dat";
+				print "=== $browser_name ===\n";
 			}
 			else {
 				$browser_name = "";
@@ -106,6 +107,7 @@ while(<FD>) {
 				$i++;
 			}
 			print OFD "\n";
+			$plot_cmds{$browser_name} = $plot_cmd;
 		}
 
 		$site_idx = 0;
@@ -226,7 +228,7 @@ $set_errorbars
 set grid y
 set boxwidth 0.85
 $set_xtic
-$plot_cmd
+$plot_cmds{$browser_name}
 ";
 	close PFD;
 	system("gnuplot $plt_name.plt");

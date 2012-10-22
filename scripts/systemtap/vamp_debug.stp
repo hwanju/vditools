@@ -248,9 +248,9 @@ probe kernel.trace("kvm_gtask_stat") {
 			$kvm->dominant_audio_task ? $kvm->dominant_audio_task->audio_avg: 0
 	)
 }
-probe kernel.trace("kvm_bg_vcpu") {
+probe kernel.trace("kvm_non_bg_vcpu") {
 	printf("%d  BN d%d_v%d-p%d t=%05x nice=%d\n", gettimeofday_us(),
-		pid(), $vcpu->vcpu_id, cpu(), $vcpu->cur_guest_task->id, $bg_vcpu_nice)
+		pid(), $vcpu->vcpu_id, cpu(), $vcpu->cur_guest_task->id, $non_bg_nice)
 }
 probe module("kvm").function("check_on_hlt") {
 	if (global_log_enabled)
