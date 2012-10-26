@@ -34,10 +34,14 @@ while(<FD>) {
 $step = 100 / $n;
 foreach $v (sort {$a <=> $b} @samples) {
 	$pct += $step;
+	$min = $v if !defined($min);
+	$val_5p = $v if !defined($val_5p) && $pct >= 5;
+	$val_50p = $v if !defined($val_50p) && $pct >= 50;
 	$val_95p = $v if !defined($val_95p) && $pct >= 90;
 	$val_99p = $v if !defined($val_99p) && $pct >= 99;
 	$max = $v;
 }
 $avg = $sum / $n;
 $sd  = sqrt(($sqsum / $n) - ($avg*$avg));
-printf "avg=%.2lf sd=%.2lf 95p=%.2lf 99p=%.2lf max=%.2lf count=%d\n", $avg, $sd, $val_95p, $val_99p, $max, $n;
+printf "avg=%.2lf sd=%.2lf 5p=%.2lf 50p=%.2lf 95p=%.2lf 99p=%.2lf min=%.2lf max=%.2lf count=%d\n", 
+	$avg, $sd, $val_5p, $val_50p, $val_95p, $val_99p, $min, $max, $n;

@@ -85,6 +85,7 @@ struct input_descriptor {
 struct slow_task {
 	int task_id;
 	int load_pct;
+	int moved;
 };
 
 /* safewrite is borrowed from libvirtd 
@@ -157,7 +158,10 @@ static void move_slow_tasks(int nr_slow_tasks, struct slow_task *slow_tasks, int
 
 	fileprintf(SLOW_CPUS_PATH, "%d-%d", nr_cpus - nr_slow_cpus, nr_cpus - 1);
 	for (i = 0; i < nr_slow_tasks; i++) {
-		if (my_pid == slow_tasks[i].task_id)	/* unlikely */
+		debug_printf(VB_DEBUG, "%s: i=%d pid=%d moved=%d\n",
+				__func__, i, slow_tasks[i].task_id, slow_tasks[i].moved);
+		if (my_pid == slow_tasks[i].task_id ||	/* unlikely */
+		    slow_tasks[i].moved)		/* likely */
 			continue;
 		fileprintf(SLOW_PROCS_PATH, "%d", slow_tasks[i].task_id);
 		debug_procname_print(slow_tasks[i].task_id);
@@ -194,7 +198,7 @@ static void move_fast_tasks(void)
 	}
 }
 
-static void restore_tasks(void)
+static void restore_all_tasks(void)
 {
 	int pid;
 	FILE *fp = fopen(SLOW_PROCS_PATH, "r");
@@ -207,6 +211,33 @@ static void restore_tasks(void)
 	while(fscanf(fp, "%d", &pid) == 1) {
 		fileprintf(FAST_PROCS_PATH, "%d", pid);
 		debug_procname_print(pid);
+	}
+	fclose(fp);
+}
+
+static void restore_fast_tasks(struct slow_task *slow_tasks, int nr_slow_tasks)
+{
+	int pid;
+	FILE *fp = fopen(SLOW_PROCS_PATH, "r");
+	if (!fp) {
+		fprintf(stderr, "Error: %s open, so fail to move fast tasks!\n", 
+				SLOW_PROCS_PATH);
+		return;
+	}
+	while(fscanf(fp, "%d", &pid) == 1) {
+		int i, is_slow = 0;
+		for (i = 0; i < nr_slow_tasks; i++) {
+			if (slow_tasks[i].task_id == pid) {
+				slow_tasks[i].moved = 1;
+				is_slow = 1;
+				break;
+			}
+		}
+		if (!is_slow) {
+			debug_printf(VB_DEBUG, "pid=%d old slow, but now fast\n", pid);
+			fileprintf(FAST_PROCS_PATH, "%d", pid);
+			debug_procname_print(pid);
+		}
 	}
 	fclose(fp);
 }
@@ -251,6 +282,17 @@ static int get_fast_cpus_load(void)
 	return cpu_util_pct;
 }
 
+static void adjust_fast_cpus(void) {
+	int fast_cpus_load = get_fast_cpus_load();
+
+	debug_printf(VB_MAJOR, "\tfast_cpus_load=%d%% (%d cpus)\n", fast_cpus_load, nr_fast_cpus);
+	if (fast_cpus_load >= 100 && nr_fast_cpus < nr_cpus - 1) {
+		nr_fast_cpus++;
+		mod_fast_cpus(nr_fast_cpus);
+		get_fast_cpus_load();
+	}
+}
+
 static inline void start_stat_monitor(void)
 {
 	if (mode == MODE_STATIC)
@@ -259,6 +301,10 @@ static inline void start_stat_monitor(void)
 		ualarm(stat_mon_period_us, 0);
 	else
 		alarm(stat_mon_period_us / 1000000);
+}
+static inline void cancel_stat_monitor(void) 
+{
+	alarm(0);
 }
 
 
@@ -276,6 +322,8 @@ static int get_slow_tasks(struct slow_task *slow_tasks, int *nr_slow_cpus)
 
 		debug_printf(VB_MAJOR, "\t%d pct load: ", slow_tasks[n].load_pct);
 		debug_procname_print(slow_tasks[n].task_id);
+
+		slow_tasks[n].moved = 0;
 
 		n++;
 	}
@@ -313,25 +361,25 @@ static void isolate_slow_tasks(int output)
 
 	/* if no slow tasks, nothing to do */
 	if (nr_slow_tasks == 0) {
-		restore_tasks();
+		restore_all_tasks();
 		return;
 	}
+	else 
+		restore_fast_tasks(slow_tasks, nr_slow_tasks);
 	if (mode < MODE_LOAD) {
-		/* optimization: 
-		 * for audio output, previous nr_fast_cpus is retained
-		 * because in most cases multimedia workloads require
-		 * more than one cpu. Since nr_fast_cpus is adjusted
-		 * after stat monitor period, degradation could happen
-		 * for the period */
-		if (!output)
-			nr_fast_cpus = init_nr_fast_cpus;
-		else if (init_nr_fast_cpus < 2) {
+		if (output) {
+			cancel_stat_monitor();
+			if (mode == MODE_DYNAMIC_LOAD)
+				adjust_fast_cpus();
 			/* in case of audio output, minimum # of fast cpus
 			 * should be more than one, so that the hypervisor
 			 * can track remote wake-up between sound server and
 			 * client */
-			init_nr_fast_cpus = 2;
+			if (nr_fast_cpus < 2)
+				nr_fast_cpus = 2;
 		}
+		else 
+			nr_fast_cpus = init_nr_fast_cpus;
 		nr_slow_cpus = nr_cpus - nr_fast_cpus;
 	}
 	else if (mode == MODE_LOAD) {
@@ -346,26 +394,26 @@ static void isolate_slow_tasks(int output)
 	move_slow_tasks(nr_slow_tasks, slow_tasks, nr_slow_cpus);
 	mod_fast_cpus(nr_fast_cpus);
 
-	if (mode == MODE_DYNAMIC_LOAD)
-		get_fast_cpus_load();
-	start_stat_monitor();
+	/* in audio output is being generated, audio stat monitor
+	 * already does periodical monitoring and signal me, so don't do monitoring
+	 * otherwise, do periodic monitoring */
+	if (!output) {
+		/* before timer start, update fast cpus load */
+		if (mode == MODE_DYNAMIC_LOAD)
+			get_fast_cpus_load();
+
+		start_stat_monitor();
+	}
 }
 
 static void stat_monitor(int arg)
 {
 	if (!slow_task_exist()) {
-		restore_tasks();
+		restore_all_tasks();
 		return;
 	}
-	if (mode == MODE_DYNAMIC_LOAD) {
-		int fast_cpus_load = get_fast_cpus_load();
-		debug_printf(VB_MAJOR, "\tfast_cpus_load=%d%% (%d cpus)\n", fast_cpus_load, nr_fast_cpus);
-		if (fast_cpus_load >= 100 && nr_fast_cpus < nr_cpus / 2) {
-			nr_fast_cpus++;
-			mod_fast_cpus(nr_fast_cpus);
-			get_fast_cpus_load();
-		}
-	}
+	if (mode == MODE_DYNAMIC_LOAD)
+		adjust_fast_cpus();
 	start_stat_monitor();
 }
 
@@ -423,10 +471,12 @@ static void monitor_input(int epfd)
 				}
 			}
 			else {
+				int stat = 0;
 				char buf[8];
-				read(idesc->fd, buf, 8);
-				debug_printf(VB_MAJOR, "\nA: audio output\n");
-				isolate_slow_tasks(1);
+				if (read(idesc->fd, buf, 8) > 0)
+					stat = atoi(buf);
+				debug_printf(VB_MAJOR, "\nA: audio output (stat=%d)\n", stat);
+				isolate_slow_tasks(stat);
 			}
 		}
 	}

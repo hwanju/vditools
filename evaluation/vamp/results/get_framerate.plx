@@ -3,15 +3,16 @@
 my $orig_fps = 23.976024;
 my $usec = 1000000;
 
-die "Usage: $0 <result file>\n" unless @ARGV == 1;
+die "Usage: $0 <result file> [N: FRAMETIMEN (=1)]\n" unless @ARGV >= 1;
 $res_fn = shift(@ARGV);
+$frametime_idx = @ARGV ? shift(@ARGV) : 1;
 $fps_fn = $res_fn;
 $fps_fn =~ s/\.result$/\.fps/g;
 open FD, $res_fn or die "file open error: $res_fn\n";
 open FPS, ">$fps_fn";
 
 while(<FD>) {
-	if (/FRAMETIME1/) {
+	if (/FRAMETIME$frametime_idx/) {
 		while(<FD>) {
 			last unless (/^\d+$/);
 			chomp;
@@ -30,6 +31,8 @@ while(<FD>) {
 						printf FPS "%.2lf\t0\n", $usec / 1000000;
 					} while( $progress - $usec > 1000000 );
 				}
+				#$sum += $frame;
+				#$sqsum += $frame * $frame;
 				$frame = 0;
 				$usec += 1000000;
 			}

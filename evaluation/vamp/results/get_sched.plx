@@ -21,6 +21,7 @@ else {
 }
 
 $pid = $nr_vals = 0;
+$prev_input_id = 1;
 while(<FD>) {
 	foreach $sched (@scheds) {
 		if ($stat{$sched}) {	# /proc/<pid>/stat
@@ -39,15 +40,22 @@ while(<FD>) {
 		}
 	}
 	if (/^# (\d+) $stat_name (\d+)/) {
+		$input_id = $1;
 		$pid = $2;
-		if ($1 > 1) {
+
+		# store previous data (we skip the last data)
+		if ($input_id > $prev_input_id) {
 			push(@vals, $val);
 			$sum += $val;
 			$sqsum += ($val * $val);
-			$val = 0;
+			printf "%d\t$val\n", $input_id - 1;
 			$nr_vals++;
+			$val = 0;
+
+			$prev_input_id = $input_id;
+			next;
 		}
-		next;
+		$prev_input_id = $input_id;
 	}
 	$pid = 0;
 }

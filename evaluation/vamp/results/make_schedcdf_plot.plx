@@ -23,16 +23,16 @@ open FD, $desc_fn or die "file open error: $desc_fn\n";
 $line = 0;
 $nr_conf = 0;
 while(<FD>) {
+	next if substr($_, 0, 1) eq "#";
 	$line++;
 	if($line == 1) {
 		@scheds = split(/\s+/);
 		next;
 	}
 	elsif($line == 2) {
-		@xmaxs = split(/\s+/);
+		@xrans = split(/\s+/);
 		next;
 	}
-	next if substr($_, 0, 1) eq "#";
 	($trace_fn, $plot_label, $lt, $lc) = split(/\s+/);
 	$plot_label =~ s/_/ /g;
 	$plot[$nr_conf][0] = $trace_fn;
@@ -66,13 +66,14 @@ foreach $sched (@scheds) {
 
 	open OFD, ">$plot_name.plt";
 	print OFD "
-	set key reverse Left bottom 
-	set xran [0:$xmaxs[$i]]
+	set key reverse Left right outside 
+	set xran [$xrans[$i]]
 	set yran [0:100]
 	set xlab 'Time (msec)'
 	set ylab 'CDF'
+	set size 1.3,1
 	set terminal postscript eps enhanced
-	set terminal post 'Times-Roman' 27
+	set terminal post 'Times-Roman' 25
 	set output '$plot_name.eps'
 	$plot_cmd
 	";

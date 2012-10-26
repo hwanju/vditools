@@ -10,7 +10,7 @@ global id
 probe kernel.trace("kvm_load_check") {
 	if ($op)
 		id++
-	printf ("%d LC id=%d op=%d d%d\n", gettimeofday_us(), id, $op, $vm_id)
+	printf ("%d LC id=%d op=%d d%d o%d\n", gettimeofday_us(), id, $op, $vm_id, $output)
 }
 probe kernel.trace("kvm_gtask_stat") {
 	printf("%d BG t=%05x pid=%d f=%d n=%s ip=%d l=%d bg=%d ac=%d avg=%d da=%05x davg=%d\n", 
@@ -26,5 +26,15 @@ probe kernel.trace("kvm_gtask_stat") {
 			$gtask->audio_avg,
 			$kvm->dominant_audio_task ? $kvm->dominant_audio_task->id : 0,
 			$kvm->dominant_audio_task ? $kvm->dominant_audio_task->audio_avg : 0
+	)
+}
+probe kernel.trace("kvm_bg2fg") {
+	printf("%d BF v%d %05x(%s)->%05x(%s)\n",
+		gettimeofday_us(),
+		$vcpu->vcpu_id,
+		$vcpu->cur_guest_task ? $vcpu->cur_guest_task->id : 0,
+		$vcpu->cur_guest_task ? kernel_string($vcpu->cur_guest_task->name) : "N/A",
+		$gtask->id,
+		kernel_string($gtask->name)
 	)
 }

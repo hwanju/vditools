@@ -12,6 +12,7 @@ if ($ARGV[0] eq "-m") {
 elsif ($ARGV[0] eq "-b") {
 	$browse_detail = shift(@ARGV);
 	@browse_sites = qw( Amazon BBC CNN Craigslist eBay ESPN Google MSN Slashdot Twitter Average );
+	@browser_names = ();
 }
 $fn = shift(@ARGV);
 $stat = shift(@ARGV);
@@ -24,10 +25,10 @@ $name .= $mixed == 1 ? "-intra_mixed" : "-inter_mixed" if $mixed;
 open FD, $fn or die "file open error: $fn\n";
 $set_xtic = "set xtic (";
 $set_labels = "";
-$set_size = "";
+$set_size = "set size 1.3,1";
 $app_idx = 0;
 $line = 0;
-$ymax = 1.4;
+$ymax = 1.6;
 if ($mixed == 1) {
 	$set_xlabel = "set xlabel 'Corunning applications in the same VM'";
 	$set_ylabel = "set ylabel 'Normalized execution time";
@@ -94,7 +95,7 @@ while(<FD>) {
 				printf OFD "%-18s", "sd($mode)" if $stat eq "avg";
 
 				$plot_cmd .= "," if $i > 0;
-				$solid = $i * 0.20 + 0.10;
+				$solid = $i * 0.13 + 0.05;
 				if ($stat eq "avg") {
 					$avg_idx = $i * 2 + $base_idx;
 					$sd_idx  = $i * 2 + $base_idx + 1;
@@ -156,9 +157,9 @@ while(<FD>) {
 				if ($i == 0) {
 					$time_sec = $mixed ? $val : $val / 1000;
 					$label_xpos = $browse_detail ? $site_idx : $app_idx;
-					$label_xpos -= (int(@modes) / 2 * 0.17);
+					$label_xpos -= (int(@modes) / 2 * 0.13);
 					if ($mixed) {
-						$set_labels{$browser_name} .= sprintf("set label '%ds' at %.2lf,1.07\n", $time_sec, $label_xpos);
+						$set_labels{$browser_name} .= sprintf("set label '%ds' at %.2lf,1.09\n", $time_sec, $label_xpos);
 					}
 					else {
 						$set_labels{$browser_name} .= sprintf("set label '%.1lfs' at %.2lf,1.05\n", $time_sec, $label_xpos);
@@ -193,7 +194,7 @@ if ($browse_detail) {
 	}
 	$set_xtic .= ")";
 	$xmax = $i - 0.5;
-	$set_size = "set size 1.5,1";
+	$set_size = "set size 2.5,1";
 }
 
 foreach $browser_name (@browser_names) {
@@ -207,9 +208,9 @@ foreach $browser_name (@browser_names) {
 	open PFD, ">$plt_name.plt";
 	print PFD "
 set terminal postscript eps enhanced monochrome
-set terminal post 'Times-Roman' 20
+set terminal post 'Times-Roman' 23
 set output '$plt_name.eps'
-set key reverse left Left width -1
+set key reverse Left outside right width -1
 $set_size
 $set_labels{$browser_name}
 $set_xlabel

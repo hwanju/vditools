@@ -1,0 +1,11 @@
+#wait_sum	wait_max	remote_wake_sum	remote_wake_max	wait_sum+remote_wake_sum	wait_max+remote_wake_max	sum_exec_runtime	utime	stime	utime+stime	sum_exec_runtime+wait_sum+remote_wake_sum
+#500		100		100		60		1000				200				2000			200	100	200	2500
+wait_max	remote_wake_sum	remote_wake_max	wait_sum+remote_wake_sum	wait_max+remote_wake_max	sum_exec_runtime	sum_exec_runtime+wait_sum+remote_wake_sum
+:500		:100		:100		:1000				:200				:1500			900:2000
+#1impress_launch:freqmine+1freqmine@baseline-N:8:0.result	Baseline	1	1	
+1impress_launch:freqmine+1freqmine@baseline-5:8:0.result	vAMP(L)		2	2	
+1impress_launch:freqmine+1freqmine@baseline-10:8:0.result	vAMP(M)	3	3	
+1impress_launch:freqmine+1freqmine@baseline-13:8:0.result	vAMP(H)	4	4	
+1impress_launch:freqmine+1freqmine@baseline-5:8:0-para:1:2.result	vAMP(L)_w/_Ext		5	5	
+1impress_launch:freqmine+1freqmine@baseline-10:8:0-para:1:2.result	vAMP(M)_w/_Ext		6	6	
+1impress_launch:freqmine+1freqmine@baseline-13:8:0-para:1:2.result	vAMP(H)_w/_Ext		7	7	
