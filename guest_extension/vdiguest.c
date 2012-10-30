@@ -16,6 +16,7 @@
 
 /* Parameters */
 int init_nr_fast_cpus = 2;	/* -f <val>: initial # of fast cpus */
+int pin_irq;			/* -i <irq num>: pin interrupts to fast vcpus */
 int verbose;			/* -v: verbose level */
 enum {
 	MODE_STATIC,
@@ -168,9 +169,43 @@ static void move_slow_tasks(int nr_slow_tasks, struct slow_task *slow_tasks, int
 	}
 }
 
-static void mod_fast_cpus(int nr_fast_cpus)
+static void mod_irq_affinity(int nr_mod_cpus)
 {
-	fileprintf(FAST_CPUS_PATH, "%d-%d", 0, nr_fast_cpus - 1);
+	int i;
+	int affinity = 0;
+	char irq_affinity_path[512];
+
+	if (!pin_irq)
+		return;
+
+	snprintf(irq_affinity_path, 512, "/proc/irq/%d/smp_affinity", pin_irq);
+	for (i = 0; i < nr_mod_cpus; i++)
+		affinity |= (1 << i);
+
+	fileprintf(irq_affinity_path, "%x", affinity);
+	//fileprintf(irq_affinity_path, "1");
+}
+
+static void mod_fast_cpus(int nr_mod_cpus)
+{
+	fileprintf(FAST_CPUS_PATH, "%d-%d", 0, nr_mod_cpus - 1);
+	mod_irq_affinity(nr_mod_cpus);
+}
+
+static void report_tasks_failed_to_move(void)
+{
+	int pid;
+	FILE *fp;
+
+	if (verbose < VB_MAJOR)
+		return;
+
+	if ((fp = fopen(ROOT_PROCS_PATH, "r")) == NULL)
+		return;
+	debug_printf(VB_MAJOR, "Process list failed to move to fast cpu group\n");
+	while(fscanf(fp, "%d", &pid) == 1)
+		debug_procname_print(pid);
+	fclose(fp);
 }
 
 static void move_fast_tasks(void)
@@ -188,14 +223,7 @@ static void move_fast_tasks(void)
 	}
 	fclose(fp);
 
-	if (verbose >= VB_MAJOR) {
-		if ((fp = fopen(ROOT_PROCS_PATH, "r")) == NULL)
-			return;
-		debug_printf(VB_MAJOR, "Process list failed to move to fast cpu group\n");
-		while(fscanf(fp, "%d", &pid) == 1)
-			debug_procname_print(pid);
-		fclose(fp);
-	}
+	report_tasks_failed_to_move();
 }
 
 static void restore_all_tasks(void)
@@ -240,6 +268,8 @@ static void restore_fast_tasks(struct slow_task *slow_tasks, int nr_slow_tasks)
 		}
 	}
 	fclose(fp);
+
+	//report_tasks_failed_to_move();
 }
 
 static int get_fast_cpus_load(void)
@@ -592,10 +622,13 @@ int main (int argc, char *argv[])
 	int epfd = -1;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "f:m:p:v:")) != -1) {
+	while ((c = getopt (argc, argv, "f:i:m:p:v:")) != -1) {
 		switch (c) {
 			case 'f':
 				init_nr_fast_cpus = atoi(optarg);
+				break;
+			case 'i':
+				pin_irq = atoi(optarg);
 				break;
 			case 'm':
 				mode = atoi(optarg);
@@ -637,8 +670,8 @@ int main (int argc, char *argv[])
 
 	my_pid = getpid();
 
-	printf("config: init_nr_fast_cpus=%d mode=%d stat_mon_period_us=%lums verbose=%d\n", 
-			init_nr_fast_cpus, mode, stat_mon_period_us / 1000, verbose);
+	printf("config: init_nr_fast_cpus=%d mode=%d stat_mon_period_us=%lums verbose=%d pin_irq=%d\n", 
+			init_nr_fast_cpus, mode, stat_mon_period_us / 1000, verbose, pin_irq);
 	printf("\t[MODE] %s\n", mode_desc[mode]);
 
 	if (setup_cpuset() != 0)

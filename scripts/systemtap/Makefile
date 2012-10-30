@@ -56,3 +56,5 @@ vamp_audio_waker: vamp_audio_waker.stp
 	stap -v -r `uname -r` $@.stp -m $@
 vamp_bg: vamp_bg.stp
 	stap -v -r `uname -r` $@.stp -m $@
+vamp_gtask_sched: vamp_gtask_sched.stp
+	stap -v -r `uname -r` $@.stp -m $@

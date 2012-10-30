@@ -11,6 +11,8 @@ if [ "$MIXED_TRACE" == "1" ]; then
 	if [ "$(echo $PRIVATE_ARG2 | grep para)" != "" ]; then
 		param1=$(echo $PRIVATE_ARG2 | cut -d: -f2)
 		param2=$(echo $PRIVATE_ARG2 | cut -d: -f3)
+		param3=$(echo $PRIVATE_ARG2 | cut -d: -f4)
+
 		nr_fast_cpus=2
 		if [ "$param1" != "" ]; then
 			nr_fast_cpus=$param1	# initial # of fast cpus
@@ -19,7 +21,11 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		if [ "$param2" != "" ]; then
 			opt="-m $param2"	# mode
 		fi
-		vdiguest -f $nr_fast_cpus -v 2 -p 1000 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
+		if [ "$param3" != "" ]; then
+			irq=`grep requests /proc/interrupts | cut -d: -f1`	# virtio block
+			opt="$opt -i $irq"
+		fi
+		vdiguest -f $nr_fast_cpus -v 0 -p 1000 $opt /dev/input/event1 /dev/input/event2 > /tmp/vdiguest.log 2>&1 &
 	fi
 fi
 
@@ -51,7 +57,13 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		fi
 	fi
 	echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
-	eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
+	#eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
+
+
+	# sched trace
+	if [ "$(echo $PRIVATE_ARG2 | grep trace)" != "" ]; then
+		sched_trace.sh sleep 100 &
+	fi
 fi
 
 i=0
@@ -162,13 +174,19 @@ if [ -e /tmp/eventprof.log ]; then
 	cat /tmp/eventprof.log >> /tmp/parsec.result
 fi
 
+# sched trace result
+if [ -e /tmp/sched.trace ]; then
+	echo "SCHEDTRACE" >> /tmp/parsec.result
+	cat /tmp/sched.trace >> /tmp/parsec.result
+fi
+
 # if mixed with video, this log file exists
 if [ -e /tmp/video.log ]; then
 	cat /tmp/video.log >> /tmp/parsec.result
 fi
 
 USER_HOME=/home/ubuntu1104
-for i in `seq 5`; do
+for i in `seq 30`; do
 	if [ -e $USER_HOME/vlc.frames.$i ]; then
 		echo "FRAMETIME$i" >> /tmp/parsec.result
 		cat $USER_HOME/vlc.frames.$i >> /tmp/parsec.result

@@ -38,12 +38,12 @@ set terminal postscript eps enhanced monochrome
 set terminal post 'Times-Roman' 25
 set output '$prefix-$mode-acount.eps'
 set key reverse Left left top
-set ytics 0,40
+set ytics 0,50
 set xran [0:$xmax]
 set xlab 'Time (sec)'
-set ylab 'Averaged audio count'
+set ylab 'Audio counter'
 set size 1.5,0.5
-plot '$video_file' u 1:2 t 'VLC' w lp lc 1 lt 1 lw 3, '$bg_file' u 1:2 t '$bg_name' w lp lc 3 lt 2 lw 3
+plot '$video_file' u 1:2 t 'VLC' w lp lc 1 lt 1 lw 3 pt 4, '$bg_file' u 1:2 t '$bg_name' w lp lc 3 lt 2 lw 3 pt 6
 ";
 			close OFD;
 			system("gnuplot $prefix-$mode-acount.plt");

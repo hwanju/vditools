@@ -28,6 +28,7 @@ probe kernel.trace("kvm_gtask_stat") {
 			$kvm->dominant_audio_task ? $kvm->dominant_audio_task->audio_avg : 0
 	)
 }
+/*
 probe kernel.trace("kvm_bg2fg") {
 	printf("%d BF v%d %05x(%s)->%05x(%s)\n",
 		gettimeofday_us(),
@@ -38,3 +39,4 @@ probe kernel.trace("kvm_bg2fg") {
 		kernel_string($gtask->name)
 	)
 }
+*/
