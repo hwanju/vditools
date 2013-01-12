@@ -11,7 +11,7 @@ if [ $# -ge 2 ]; then
         postfix=$2
 fi
 
-for parsec in $parsec_workloads $npb_workloads $interactive_workloads; do
+for parsec in $parsec_workloads $npb_workloads $interactive_workloads $io_workloads $other_workloads; do
         for mode in $modes; do 
                 ./gen_workload.plx ${nr_workloads}${parsec}${postfix}@$mode $postfix
         done

@@ -16,6 +16,7 @@ while(<FD>) {
 	@npb_workloads     = @workload_list if ($workload_name eq "npb_workloads");
 	@ubuntu_workloads  = @workload_list if ($workload_name eq "ubuntu_workloads");
 	@windows_workloads = @workload_list if ($workload_name eq "windows_workloads");
+	@io_workloads      = @workload_list if ($workload_name eq "io_workloads");
 }
 close FD;
 
@@ -29,6 +30,7 @@ my %windows;
 @npb{@npb_workloads} = ();
 @ubuntu{@ubuntu_workloads} = ();
 @windows{@windows_workloads} = ();
+@io{@io_workloads} = ();
 
 ($workloads, $mode) = split( /@/, $fn );
 $prolog = $epilog = $mode;
@@ -55,6 +57,7 @@ foreach $w (@workload_list) {
 		elsif (exists $npb{$name})		{ $subdir = "ubuntu/npb" }
 		elsif (exists $ubuntu{$name})		{ $subdir = "ubuntu/interactive" }
 		elsif (exists $windows{$name})		{ $subdir = "windows/interactive" }
+		elsif (exists $io{$name})		{ $subdir = "ubuntu/io" }
 		elsif ($name =~ /Pi/)			{ $subdir = "ubuntu/Pi" }
 		else					{ $subdir = "ubuntu" }
 

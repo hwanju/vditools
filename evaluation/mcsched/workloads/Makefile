@@ -10,5 +10,6 @@ all:
 	./gen_hetero_workloads.sh 1 4 x264	# seq + par
 	./gen_homo_workloads.sh 3		# for urgent tslice sensitivity
 	./gen_hetero_workloads.sh 1 2 facesim	# for urgent allowance sensitivity
+	./gen_hetero_workloads.sh 1 1 memcached # par + par (io)
 clean: 
 	rm -f *@*

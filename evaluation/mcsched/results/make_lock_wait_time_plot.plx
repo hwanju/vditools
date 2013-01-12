@@ -77,7 +77,10 @@ set style histogram rowstacked
 #set style histogram cluster gap 0.2
 set style fill solid border 0.2
 set boxwidth 0.6
-plot '$plot_name.dat' u 2 t 'futex-queue lock' fs solid 0.10 lt 1 , '' u 3 t 'sem-wait lock' fs pattern 5 lt 1 , '' u 4 t 'runqueue lock' fs solid 0.35 lt 1 , '' u 5 t 'pagetable lock' fs pattern 6 lt 1 , '' u 6 t 'wait-queue lock' fs solid 0.65  lt 1 , '' u 7 t 'other locks' fs solid 0.85 lt 1
+# lockstat original version (trylock based)
+#plot '$plot_name.dat' u 2 t 'futex-queue lock' fs solid 0.10 lt 1 , '' u 3 t 'sem-wait lock' fs pattern 5 lt 1 , '' u 4 t 'runqueue lock' fs solid 0.35 lt 1 , '' u 5 t 'pagetable lock' fs pattern 6 lt 1 , '' u 6 t 'wait-queue lock' fs solid 0.65  lt 1 , '' u 7 t 'other locks' fs solid 0.85 lt 1
+# lockstat fixed version (ticketlock based)
+plot '$plot_name.dat' u 2 t 'futex-queue lock' fs solid 0.10 lt 1 , '' u 3 t 'sem-wait lock' fs pattern 5 lt 1 , '' u 4 t 'pagetable lock' fs solid 0.35 lt 1 , '' u 5 t 'runqueue lock' fs pattern 6 lt 1 , '' u 6 t 'other locks' fs solid 0.65  lt 1 
 ";
 close OFD;
 
