@@ -40,6 +40,6 @@ for workload in $workload_list; do
 		params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100
 	else
 		#mixed=1 params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100
-		cfg_postfix=-unfairlock res_postfix=-unfairlock mixed=1 params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100
+		cfg_postfix=-pvspinlock mixed=1 params=$eval_params ./test_scripts/mcsched.sh $workload fairbal_pct100
 	fi
 done

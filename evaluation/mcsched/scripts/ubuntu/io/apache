@@ -5,11 +5,11 @@ i=0
 echo > /tmp/total.result
 while true; do
         # check pvspinlock current status
-        if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
+        if [ -e /sys/kernel/debug/kvm_guest/spinlocks/ ]; then
                 echo "pvspinlock label" > /tmp/pvspinlock.log
-                find /sys/kernel/debug/kvm/spinlocks/ -type f -exec basename {} \; >> /tmp/pvspinlock.log
+                find /sys/kernel/debug/kvm_guest/spinlocks/ -type f -exec basename {} \; >> /tmp/pvspinlock.log
                 echo "pvspinlock start" >> /tmp/pvspinlock.log
-                find /sys/kernel/debug/kvm/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
+                find /sys/kernel/debug/kvm_guest/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
         fi
         # init lockstat
         if [ -e /proc/lock_stat ]; then
@@ -46,14 +46,14 @@ while true; do
         cat /proc/schedstat >> /tmp/schedstat.log
         
         # check pvspinlock finish status
-        if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
+        if [ -e /sys/kernel/debug/kvm_guest/spinlocks/ ]; then
                 echo "pvspinlock end" >> /tmp/pvspinlock.log
-                find /sys/kernel/debug/kvm/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
+                find /sys/kernel/debug/kvm_guest/spinlocks/ -type f -exec cat {} \; >> /tmp/pvspinlock.log
         fi
         
         # merge result
         cat /tmp/result >> /tmp/total.result
-        if [ -e /sys/kernel/debug/kvm/spinlocks/ ]; then
+        if [ -e /sys/kernel/debug/kvm_guest/spinlocks/ ]; then
                 cat /tmp/pvspinlock.log >> /tmp/total.result
         fi
         if [ -e /proc/lock_stat ]; then
