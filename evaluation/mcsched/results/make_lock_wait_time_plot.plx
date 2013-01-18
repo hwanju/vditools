@@ -9,7 +9,7 @@ $plot_name =~ s/-lockstat//g;
 $plot_name .= "-$mode-lock_wait_time";
 open OFD, ">$plot_name.dat";
 
-@workloads = qw( bodytrack canneal dedup facesim streamcluster swaptions vips x264 );
+@workloads = qw( bodytrack canneal dedup facesim fluidanimate streamcluster swaptions vips x264 );
 
 foreach $w (@workloads) {
         $res_file = `ls $dir/1$w*\@baseline.result`;
