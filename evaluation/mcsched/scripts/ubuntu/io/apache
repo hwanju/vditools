@@ -1,17 +1,9 @@
-PROGRAM=
-CLASS=
-NR_THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
-
-mem_hog.sh	# allocate memory intentionally to avoid runtime minor fault of kvm vcpus
-cd ~/NPB3.3.1/NPB3.3-OMP
-
 SEND_READY_SIGNAL
 WAIT_START_SIGNAL
 
 i=0
-echo > /tmp/npb.result
-while [ 1 ]
-do
+echo > /tmp/total.result
+while true; do
         # check pvspinlock current status
         if [ -e /sys/kernel/debug/kvm_guest/spinlocks/ ]; then
                 echo "pvspinlock label" > /tmp/pvspinlock.log
@@ -25,7 +17,10 @@ do
         fi
 	# check and run futex profiling
 	if [ "$PRIVATE_ARG2" == "futex" -a $i -eq 0 -a -e /root/futex_prof.ko ]; then
-		procname=$PROGRAM
+		procname=$PACKAGE
+		if [ "$PACKAGE" == "raytrace" ]; then
+			procname=rtview
+		fi
 		echo "futex_wait_stat" > /tmp/futex_prof.log
 		#staprun /root/futex_prof.ko | grep $procname >> /tmp/futex_prof.log &
 		staprun /root/futex_prof.ko >> /tmp/futex_prof.log 2>&1 &
@@ -37,8 +32,7 @@ do
         cat /proc/schedstat >> /tmp/schedstat.log
 	pidstat -u 10 > /tmp/pidstat.log &
         
-	export OMP_NUM_THREADS=$NR_THREADS
-	/usr/bin/time -v bin/$PROGRAM.$CLASS.x > /tmp/result 2>&1
+	ssh $CLIENT_IP /usr/bin/time -v ab -n 100000000 -c 100 http://$IP_GUEST1/html/* > /tmp/result 2>&1
 
 	# finish futex profiling if needed
 	if [  "$PRIVATE_ARG2" == "futex" -a $i -eq 0 ]; then
@@ -58,16 +52,16 @@ do
         fi
         
         # merge result
-        cat /tmp/result >> /tmp/npb.result
+        cat /tmp/result >> /tmp/total.result
         if [ -e /sys/kernel/debug/kvm_guest/spinlocks/ ]; then
-                cat /tmp/pvspinlock.log >> /tmp/npb.result
+                cat /tmp/pvspinlock.log >> /tmp/total.result
         fi
         if [ -e /proc/lock_stat ]; then
-                cat /proc/lock_stat >> /tmp/npb.result
+                cat /proc/lock_stat >> /tmp/total.result
         fi
-        cat /tmp/stat.log >> /tmp/npb.result
-        cat /tmp/schedstat.log >> /tmp/npb.result
-	cat /tmp/pidstat.log >> /tmp/npb.result
+        cat /tmp/stat.log >> /tmp/total.result
+        cat /tmp/schedstat.log >> /tmp/total.result
+	cat /tmp/pidstat.log >> /tmp/total.result
 
 	if [ "$PRIVATE_ARG2" == "no_iter" ]; then
 		break
@@ -98,7 +92,7 @@ done
 # futex result
 if [ "$PRIVATE_ARG2" == "futex" ]; then
 	sleep 10
-	cat /tmp/futex_prof.log >> /tmp/npb.result
+	cat /tmp/futex_prof.log >> /tmp/total.result
 fi
 
-cat /tmp/npb.result | TO_HOST
+cat /tmp/total.result | TO_HOST

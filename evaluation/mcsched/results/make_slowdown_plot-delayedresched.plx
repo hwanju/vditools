@@ -84,10 +84,24 @@ $plot2 = "'$plot_name2.dat'";
 
 $plot_first = 1;
 @fill_map = ("fs solid 0.05", "fs pattern 2", "fs solid 0.45", "fs pattern 4", "fs solid 0.85", "fs pattern 6");
-@title_map = ("Baseline", "Balance", "LC Balance", "LC Balance+Resched-DP", "LC Balance+Resched-DP+TLB-Co", "LC Balance+Resched-DP+TLB-Co+Resched-Co");
+@title_map = ("Baseline", "Baseline+DelayedResched", "LC Balance", "LC Balance+DelayedResched", "LC Balance+Resched-DP");
+#@fill_map = ("fs solid 0.05", "fs pattern 2", "fs solid 0.30", "fs pattern 4", "fs solid 0.65", "fs pattern 6", "fs solid 0.90", "fs pattern 8");
+#@title_map = ("Baseline", "Baseline+DelayedResched", "Baseline+Unfairlock", "LC Balance", "LC Balance+DelayedResched", "LC Balance+Resched-DP", "LC Balance+Resched-DP+Unfairlock");
 $idx = 0;
 $max_slowdown = 0;
 	
+print OFD "# ";
+print OFD1 "# ";
+print OFD2 "# ";
+foreach $mode (sort keys %{$sum{"streamcluster"}}) {
+	printf OFD "$mode\t";
+	printf OFD1 "$mode\t";
+	printf OFD2 "$mode\t";
+}
+print OFD "\n";
+print OFD1 "\n";
+print OFD2 "\n";
+
 foreach $workload (sort keys %sum) {
 	$workload_name = $workload;
 	$workload_name =~ s/^\w+\+//g unless (defined($solorun_time{$workload_name}));
@@ -167,18 +181,18 @@ system("gnuplot $plot_name.plt");
 open OFD, ">$plot_name1.plt";
 print OFD "
 set terminal postscript eps enhanced monochrome
-set terminal post 'Times-Roman' 22
+set terminal post 'Times-Roman' 24
 set output '$plot_name1.eps'
 set size 1.5,1
-set key reverse right box Left outside horizontal width -1
+set key reverse right box Left outside width -1
 set xlabel 'The workloads of SMP VM'
 set ylabel 'Normalized execution time' 
-#set xrange [-1:38]
-#set yrange [0:]
+set xrange [-0.5:1.7]
+set yrange [0:1]
 #set parametric
 #set xtics 0,10
 set xtics nomirror
-set xtic rotate by -45
+#set xtic rotate by -45
 #set ytics 0,20
 set ytics nomirror
 set style data histograms
