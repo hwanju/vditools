@@ -1,5 +1,5 @@
-N:8:0		5:8:0		10:8:0		13:8:0		5:8:0-para:1:2	10:8:0-para:1:2	13:8:0-para:1:2 
-Baseline	vAMP(L)		vAMP(M)		vAMP(H)		vAMP(L)_w/_Ext	vAMP(M)_w/_Ext	vAMP(H)_w/_Ext
+N:8:0		5:8:0		10:8:0		13:8:0		5:8:0-para:1:2:1	10:8:0-para:1:2:1	13:8:0-para:1:2:1 
+Baseline	vAMP(L)		vAMP(M)		vAMP(H)		vAMP(L)_w/_Ext		vAMP(M)_w/_Ext		vAMP(H)_w/_Ext
 1impress_launch\:freqmine+1freqmine@baseline	Impress
 1firefox_launch\:freqmine+1freqmine@baseline	Firefox
 1chrome_launch\:freqmine+1freqmine@baseline	Chrome

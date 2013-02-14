@@ -22,6 +22,7 @@ if [ "$MIXED_TRACE" == "1" ]; then
 			opt="-m $param2"	# mode
 		fi
 		if [ "$param3" != "" ]; then
+			#irq=`grep virtio0-input /proc/interrupts | cut -d: -f1`	# virtio net
 			irq=`grep requests /proc/interrupts | cut -d: -f1`	# virtio block
 			opt="$opt -i $irq"
 		fi
@@ -40,7 +41,7 @@ if [ "$MIXED_TRACE" == "1" ]; then
                 NR_THREADS=$val
         fi
 	if [ "$(echo $PRIVATE_ARG2 | grep pin)" != "" ]; then
-		prefix_cmd="taskset -c 4-7"
+		prefix_cmd="taskset -c 2-7"
 	fi
 
 	# event-based profiling
@@ -57,7 +58,7 @@ if [ "$MIXED_TRACE" == "1" ]; then
 		fi
 	fi
 	echo "eventprof is started for $fg_workload" >> /tmp/eventprof.log
-	#eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
+	taskset -c 0 eventprof -t $fg_workload -p 7 /dev/input/event1 /dev/input/event2 >> /tmp/eventprof.log &
 
 
 	# sched trace
@@ -96,7 +97,7 @@ do
         cat /proc/stat >> /tmp/stat.log
         echo start_time=`date '+%s'` > /tmp/schedstat.log
         cat /proc/schedstat >> /tmp/schedstat.log
-	pidstat -u -r -d -h 10 > /tmp/pidstat.log &
+	pidstat -u -r -d -t -h 10 > /tmp/pidstat.log &
         
         $prefix_cmd bin/parsecmgmt -a run -p $PACKAGE -n $NR_THREADS -i native -k -s "/usr/bin/time -v" > /tmp/result
 

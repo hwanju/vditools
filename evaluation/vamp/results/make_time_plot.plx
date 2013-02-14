@@ -28,7 +28,7 @@ $set_labels = "";
 $set_size = "set size 1.3,1";
 $app_idx = 0;
 $line = 0;
-$ymax = 1.6;
+$ymax = 1.4;
 if ($mixed == 1) {
 	$set_xlabel = "set xlabel 'Corunning applications in the same VM'";
 	$set_ylabel = "set ylabel 'Normalized execution time";
@@ -137,13 +137,14 @@ while(<FD>) {
 					}
 				}
 				else {
-					$mult = $prefix =~ /launch/ ? 2 : 1;
+					#$mult = $prefix =~ /launch/ ? 2 : 1;
+					$mult = 2;
 					$rawfn = "$prefix-$mode.latency";
 					$resfn = "$prefix-$mode.time";
 					$opt = "";
 					if ($browse_detail && $site_idx < 10) {
 						$resfn =~ s/\.time/-$site\.time/g;
-						$opt = sprintf("%d 10", $site_idx + 1);
+						$opt = sprintf("%d 20", ($site_idx * 2) + 1);
 					}
 					`./get_latency.plx $rawfn $mult $opt > $resfn`;
 					$stat_all = `tail -1 $resfn`;
@@ -194,7 +195,7 @@ if ($browse_detail) {
 	}
 	$set_xtic .= ")";
 	$xmax = $i - 0.5;
-	$set_size = "set size 2.5,1";
+	$set_size = "set size 2.8,1";
 }
 
 foreach $browser_name (@browser_names) {

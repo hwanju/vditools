@@ -14,7 +14,7 @@ $fps_fn =~ s/\.result$/\.fps/g;
 $last_frame_str = `grep FRAMETIME $res_fn | tail -1`;
 $last_frame_idx = $1 if ($last_frame_str =~ /FRAMETIME(\d+)/);
 printf "last_frame_idx=$last_frame_idx valid_last_frame_idx=%d\n", $last_frame_idx - 2;
-$last_frame_idx -= 2;
+$last_frame_idx -= 2 if $last_frame_idx > 2;
 
 # exceptional case: only consider the first three 
 if ($frametime_idx == -1) {
@@ -41,7 +41,7 @@ retry:
 				#print "$idx: sum=$sum n=$n\n";
 				$avg = $sum / $n;
 				$sd = sqrt(($sqsum / $n) - ($avg*$avg));
-				printf "FRAMETIME$idx: avg=%.3lf sd=%.3lf drop_rate=%.3lf\n", $avg, $sd, ($total_frames - $sum) * 100 / $total_frames;
+				printf "FRAMETIME$idx: frames=$sum avg=%.3lf sd=%.3lf drop_rate=%.3lf\n", $avg, $sd, ($total_frames - $sum) * 100 / $total_frames;
 
 				$total_sum += $sum;
 				$total_sqsum += $sqsum;

@@ -63,7 +63,9 @@ foreach $workload (@ubuntu_workloads, @windows_workloads) {
 		s/^(CLIENT_HOME=)/$1$conf{'CLIENT_HOME'}/g;
 		s/^(CLIENT_TRACE_DIR=)/$1$conf{'CLIENT_TRACE_DIR'}/g;
 		s/^(WORKLOAD=)/$1$workload/g;
-		s/^(THINK_TIME_MS=)/$1$think_time_ms/g;
+		$think_time = $think_time_ms; 
+		$think_time *= 3 if ($workload eq "chrome" || $workload eq "firefox");
+		s/^(THINK_TIME_MS=)/$1$think_time/g;
 		s/^(NR_ITER=)/$1$nr_iter/g;
 		s/^(SPICE_PORT=)/$1$conf{'SPICE_PORT_BASE'}/g;
 

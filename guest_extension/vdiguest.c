@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -616,6 +617,17 @@ static void make_myself_realtime(void)
 		perror("sched_setscheduler");
 }
 
+static void pin_myself_on_cpu0(void)
+{
+	cpu_set_t set;
+
+	CPU_ZERO(&set);
+	CPU_SET(0, &set);
+	
+	if (sched_setaffinity(0, sizeof (cpu_set_t), &set) == 1)
+		fprintf(stderr, "fail to pin myself on cpu0\n");
+}
+
 int main (int argc, char *argv[])
 {
 	int c;
@@ -679,6 +691,8 @@ int main (int argc, char *argv[])
 	printf("cpuset configuration is done.\n");
 
 	make_myself_realtime();
+
+	pin_myself_on_cpu0();
 
 	init_stat_monitor();
 
